@@ -23,17 +23,30 @@ obj/
 [Rr]eleases/
 x64/
 x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
 build/
 bld/
 [Bb]in/
 [Oo]bj/
 [Oo]ut/
+[Ll]og/
+[Ll]ogs/
 msbuild.log
 msbuild.err
 msbuild.wrn
 
 # Visual Studio Code files
 .vscode/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
 
 # NuGet Packages
 *.nupkg
@@ -45,8 +58,22 @@ msbuild.wrn
 # Local History for Visual Studio Code
 .history/
 
+# MSBuild Binary and Structured Log
+*.binlog
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
 # Others
 *.swp
 *.*~
+~$*
 project.lock.json
 .DS_Store
+CodeCoverage/
