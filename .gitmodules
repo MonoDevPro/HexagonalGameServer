@@ -1,0 +1,3 @@
+[submodule "External/Network"]
+	path = External/Network
+	url = https://github.com/MonoDevPro/HexagonalNetwork

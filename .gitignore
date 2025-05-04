@@ -16,6 +16,9 @@ obj/
 # User-specific files
 *.userprefs
 
+# GitHub folder
+.github/prompts/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
