@@ -8,11 +8,12 @@
 
     <ItemGroup>
       <Folder Include="Messaging\" />
-      <Folder Include="Networking\" />
+      <Folder Include="Outbound/Persistence/Database/" />
       <Folder Include="Persistence\" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="../Shared/NetworkCommon/NetworkCommon.csproj" />
       <ProjectReference Include="..\Server.Application\Server.Application.csproj" />
     </ItemGroup>
 

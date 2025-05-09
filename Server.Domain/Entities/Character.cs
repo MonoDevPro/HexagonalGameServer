@@ -1,7 +1,8 @@
+using Server.Domain.Entities.Primitives;
 using Server.Domain.Enum;
 using Server.Domain.Events;
+using Server.Domain.Events.Character;
 using Server.Domain.ValueObjects;
-using Server.Domain.ValueObjects.Primitives;
 
 // Add Primitives namespace
 
@@ -56,7 +57,7 @@ public class Character : Entity
             return;
             
         // Calcula o deslocamento baseado na direção
-        Vector2 movement = GetMovementVector(direction);
+        PositionVO movement = GetMovementVector(direction);
         
         // Guarda o estado anterior para o evento
         CharacterState previousState = State;
@@ -293,20 +294,11 @@ public class Character : Entity
     }
     
     // Métodos auxiliares (privados)
-    private Vector2 GetMovementVector(Direction direction)
+    private PositionVO GetMovementVector(Direction direction)
     {
-        return direction switch
-        {
-            Direction.Up => new Vector2(0, -1),
-            Direction.Down => new Vector2(0, 1),
-            Direction.Left => new Vector2(-1, 0),
-            Direction.Right => new Vector2(1, 0),
-            Direction.UpLeft => new Vector2(-1, -1),
-            Direction.UpRight => new Vector2(1, -1),
-            Direction.DownLeft => new Vector2(-1, 1),
-            Direction.DownRight => new Vector2(1, 1),
-            _ => Vector2.Zero
-        };
+        var positionVO = new PositionVO(BoundingBox.X, BoundingBox.Y);
+        positionVO.Move(direction);
+        return positionVO;
     }
     
     private bool IsInAttackRange(Character target)

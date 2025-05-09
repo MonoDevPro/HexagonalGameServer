@@ -4,7 +4,9 @@ using Server.Domain.Enum;
 using Server.Domain.Events;
 using Server.Domain.Services;
 using Moq;
+using Server.Domain.Events.Account;
 using Xunit;
+using Server.Application.Ports.Outbound.Security;
 
 namespace Server.Tests.Domain.Entities;
 
@@ -18,7 +20,7 @@ public class AccountStateTests
         _mockPasswordHasher = new Mock<IPasswordHasher>();
         _mockPasswordHasher.Setup(x => x.HashPassword(It.IsAny<string>())).Returns("hashedpassword");
         
-        _account = new Account("testuser", "password123", _mockPasswordHasher.Object);
+        _account = new Account("testuser", "password123");
     }
     
     [Fact]

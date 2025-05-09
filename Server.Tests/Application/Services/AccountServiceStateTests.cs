@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Moq;
+using Server.Application.Ports.Outbound.Security;
 using Server.Application.Services;
 using Server.Domain.Entities;
 using Server.Domain.Enum;

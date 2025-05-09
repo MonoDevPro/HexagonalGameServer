@@ -1,17 +1,14 @@
 using Server.Domain.Enum;
-using Server.Domain.Events;
-using Server.Domain.Services;
 using Server.Domain.ValueObjects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using Server.Domain.Events.Account;
+using Server.Domain.Events.Character;
 
 namespace Server.Domain.Entities;
 
 public class Account : Entity
 {
     public string Username { get; private set; }
-    private string _passwordHash;
+    public string PasswordHash { get; private set; }
     public AccountState State { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? LastLoginAt { get; private set; }
@@ -24,15 +21,15 @@ public class Account : Entity
     {
     } // Para uso do ORM
 
-    public Account(string username, string password, IPasswordHasher passwordHasher)
+    public Account(string username, string hashedPassword)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username cannot be empty.", nameof(username));
-        if (string.IsNullOrWhiteSpace(password))
-            throw new ArgumentException("Password cannot be empty.", nameof(password));
+        if (string.IsNullOrWhiteSpace(hashedPassword))
+            throw new ArgumentException("Password cannot be empty.", nameof(hashedPassword));
 
         Username = username;
-        _passwordHash = passwordHasher.HashPassword(password);
+        PasswordHash = hashedPassword;
         State = AccountState.Created;
         CreatedAt = DateTime.UtcNow;
         
@@ -40,7 +37,7 @@ public class Account : Entity
         AddDomainEvent(new AccountCreatedEvent(Id, Username));
     }
 
-    public bool Authenticate(string password, IPasswordHasher passwordHasher)
+    public bool Authenticate(string hashedPassword)
     {
         // Verificar se a conta está em um estado que permite autenticação
         if (State == AccountState.Banned || State == AccountState.Deleted || 
@@ -49,7 +46,9 @@ public class Account : Entity
             return false;
         }
         
-        bool isAuthenticated = passwordHasher.VerifyHashedPassword(_passwordHash, password);
+        if (string.IsNullOrWhiteSpace(hashedPassword))
+            throw new ArgumentException("Password cannot be empty.", nameof(hashedPassword));
+        bool isAuthenticated = PasswordHash.Equals(hashedPassword, StringComparison.OrdinalIgnoreCase);
         
         if (isAuthenticated)
         {
@@ -59,12 +58,12 @@ public class Account : Entity
         return isAuthenticated;
     }
 
-    public void ChangePassword(string newPassword, IPasswordHasher passwordHasher)
+    public void ChangePassword(string hashedPassword)
     {
-        if (string.IsNullOrWhiteSpace(newPassword))
-            throw new ArgumentException("New password cannot be empty.", nameof(newPassword));
+        if (string.IsNullOrWhiteSpace(hashedPassword))
+            throw new ArgumentException("New password cannot be empty.", nameof(hashedPassword));
 
-        _passwordHash = passwordHasher.HashPassword(newPassword);
+        PasswordHash = hashedPassword;
         
         // Podemos adicionar um evento de domínio para notificar a mudança de senha
         AddDomainEvent(new AccountPasswordChangedEvent(Id, Username));

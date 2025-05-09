@@ -10,6 +10,7 @@ using Server.Infrastructure.Security;
 using Xunit;
 using Xunit.Abstractions;
 using System.Collections.Generic;
+using Server.Application.Ports.Outbound.Security;
 
 namespace Server.Tests.Integration;
 

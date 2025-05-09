@@ -1,8 +1,10 @@
 ﻿using Server.Application.Services;
+using Server.Domain.Entities.Primitives;
 using Server.Domain.Enum;
 using Server.Domain.Events;
+using Server.Domain.Events.Account;
+using Server.Domain.Events.Character;
 using Server.Domain.ValueObjects;
-using Server.Domain.ValueObjects.Primitives;
 using Server.Infrastructure.Messaging;
 using Server.Infrastructure.Persistence;
 using Server.Infrastructure.Security;
@@ -17,7 +19,7 @@ public class Program
         var accountRepository = new InMemoryAccountRepository();
         var characterRepository = new InMemoryCharacterRepository();
         var passwordHasher = new PasswordHasher();
-        var eventPublisher = new InMemoryGameEventPublisher();
+        var eventPublisher = new GameEventPublisher();
         
         // Configuração de serviços da aplicação
         var accountService = new AccountService(accountRepository, characterRepository, passwordHasher, eventPublisher);
@@ -33,7 +35,7 @@ public class Program
         // await DemoGameFlowAsync(accountService, characterService);
     }
     
-    private static void RegisterEventHandlers(InMemoryGameEventPublisher eventPublisher)
+    private static void RegisterEventHandlers(GameEventPublisher eventPublisher)
     {
         // Manipuladores de eventos para Account
         eventPublisher.Subscribe<AccountCreatedEvent>(async e => {
@@ -451,7 +453,7 @@ public class Program
                 stats, 
                 vital, 
                 boundingBox, 
-                Direction.Down, 
+                Direction.South, 
                 1);
                 
             System.Console.WriteLine($"Personagem '{character.Name}' criado com ID: {character.Id}\n");
@@ -463,7 +465,7 @@ public class Program
             
             // 6. Mover o personagem
             System.Console.WriteLine("6. Movendo o personagem...");
-            await characterService.MoveCharacterAsync(character.Id, Direction.Right);
+            await characterService.MoveCharacterAsync(character.Id, Direction.West);
             character = await characterService.GetCharacterByIdAsync(character.Id);
             System.Console.WriteLine($"Nova posição: X={character.BoundingBox.X}, Y={character.BoundingBox.Y}, Direção={character.Direction}\n");
             

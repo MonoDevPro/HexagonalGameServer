@@ -1,10 +1,8 @@
 using Server.Domain.Entities;
 using Server.Domain.Enum;
-using Server.Domain.Repositories;
 using Server.Domain.Services;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Server.Application.Ports.Outbound.Persistence;
+using Server.Application.Ports.Outbound.Security;
 
 namespace Server.Application.Services;
 
@@ -15,6 +13,7 @@ public class AccountService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IGameEventPublisher _eventPublisher;
 
+    // Os repositórios aqui injetados são de cenário real, de persistencia em banco de dados.
     public AccountService(
         IAccountRepository accountRepository, 
         ICharacterRepository characterRepository,
@@ -32,8 +31,10 @@ public class AccountService
     {
         if (await _accountRepository.ExistsAsync(username))
             throw new InvalidOperationException("Username already exists.");
+        
+        var hashedPassword = _passwordHasher.HashPassword(password);
 
-        var account = new Account(username, password, _passwordHasher);
+        var account = new Account(username, hashedPassword);
         await _accountRepository.AddAsync(account);
         
         await PublishDomainEventsAsync(account);
@@ -44,8 +45,10 @@ public class AccountService
         var account = await _accountRepository.GetByUsernameAsync(username);
         if (account == null)
             return false;
+        
+        var hashedPassword = _passwordHasher.HashPassword(password);
 
-        return account.Authenticate(password, _passwordHasher);
+        return account.Authenticate(hashedPassword);
     }
     
     // Gerenciamento de senha
@@ -54,10 +57,11 @@ public class AccountService
         var account = await _accountRepository.GetByUsernameAsync(username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
-
-        account.ChangePassword(newPassword, _passwordHasher);
-        await _accountRepository.UpdateAsync(account);
         
+        var hashedPassword = _passwordHasher.HashPassword(newPassword);
+
+        account.ChangePassword(hashedPassword);
+        await _accountRepository.UpdateAsync(account);
         await PublishDomainEventsAsync(account);
     }
     

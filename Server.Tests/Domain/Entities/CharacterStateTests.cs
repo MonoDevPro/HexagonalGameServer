@@ -1,9 +1,10 @@
 using System;
 using Server.Domain.Entities;
+using Server.Domain.Entities.Primitives;
 using Server.Domain.Enum;
 using Server.Domain.Events;
+using Server.Domain.Events.Character;
 using Server.Domain.ValueObjects;
-using Server.Domain.ValueObjects.Primitives;
 using Xunit;
 
 namespace Server.Tests.Domain.Entities;
