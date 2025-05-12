@@ -44,12 +44,12 @@ public class Program
         
         // Obtém os serviços necessários
         var clientApp = _provider.GetRequiredService<IClientNetworkApp>();
-        var packetRegistry = _provider.GetRequiredService<IPacketRegistry>();
-        var eventBus = _provider.GetRequiredService<INetworkEventBus>();
         
-        // Registra handlers de eventos
-        eventBus.Subscribe<ConnectionEvent>(OnConnectionEvent);
-        eventBus.Subscribe<DisconnectionEvent>(OnDisconnectEvent);
+        // Registra handlers de eventos esporádicos.
+        clientApp.EventBus.Subscribe<ConnectionEvent>(OnConnectionEvent);
+        clientApp.EventBus.Subscribe<DisconnectionEvent>(OnDisconnectEvent);
+        
+        clientApp.ConnectionManager.ConnectionLatencyEvent += OnPingEvent;
         
         // Registra handlers de pacotes
         // packetRegistry.RegisterPacketHandler<SeuTipoDePacote>(HandlerDoSeuPacote);
@@ -57,20 +57,23 @@ public class Program
         
         var cancelationTokenSource = new System.Threading.CancellationTokenSource();
 
-        await Task.Run(async () =>
+        var task = Task.Run(async () =>
         {
-            while (cancelationTokenSource.Token.IsCancellationRequested)
+            while (!cancelationTokenSource.Token.IsCancellationRequested)
             {
                 clientApp.Update();
                 await Task.Delay(15, cancelationTokenSource.Token);
             }
             
+            System.Console.WriteLine("Desconectando...");
+            
             clientApp.Disconnect();
         }, cancelationTokenSource.Token);
+        //task.RunSynchronously();
         
         // Conecta ao servidor
         System.Console.WriteLine("Tentando conectar ao servidor...");
-        var connected = await clientApp.ConnectAsync("127.0.0.1", 9050);
+        var connected = await clientApp.ConnectAsync("127.0.0.1", 8090);
         
         if (connected.Success)
         {
@@ -80,6 +83,8 @@ public class Program
         {
             System.Console.WriteLine("Falha ao conectar ao servidor!");
         }
+        
+        await Task.Delay(-1, cancelationTokenSource.Token);
         
         System.Console.WriteLine("Pressione qualquer tecla para sair...");
         System.Console.ReadKey();
@@ -94,4 +99,10 @@ public class Program
     {
         System.Console.WriteLine($"Evento de desconexão: {evt.Reason}");
     }
+    
+    private static void OnPingEvent(ConnectionLatencyEvent evt)
+    {
+        System.Console.WriteLine($"Ping: {evt.PeerId}");
+    }
 }
+

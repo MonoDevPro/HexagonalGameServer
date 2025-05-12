@@ -8,10 +8,17 @@
 
     <ItemGroup>
       <Folder Include="Outbound/Persistence/Database/" />
+      <Folder Include="Inbound/Http/" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Server.Application\Server.Application.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+      <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0-*" />
+      <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     </ItemGroup>
 
 </Project>
