@@ -1,7 +1,9 @@
-using Server.Domain.Enum;
+using Server.Domain.Enums;
 using Server.Domain.ValueObjects;
 using Server.Domain.Events.Account;
 using Server.Domain.Events.Character;
+using Server.Domain.Policies;
+using Server.Domain.ValueObjects.Account;
 
 namespace Server.Domain.Entities;
 
@@ -13,6 +15,7 @@ public class Account : Entity
     public DateTime CreatedAt { get; private set; }
     public DateTime? LastLoginAt { get; private set; }
     
+    
     // Relação com Character - usando composição para garantir encapsulamento
     private readonly List<Character> _characters = new();
     public IReadOnlyCollection<Character> Characters => _characters.AsReadOnly();
@@ -21,16 +24,13 @@ public class Account : Entity
     {
     } // Para uso do ORM
 
-    public Account(string username, string hashedPassword)
+    public Account(AccountCreationOptions options)
     {
-        if (string.IsNullOrWhiteSpace(username))
-            throw new ArgumentException("Username cannot be empty.", nameof(username));
-        if (string.IsNullOrWhiteSpace(hashedPassword))
-            throw new ArgumentException("Password cannot be empty.", nameof(hashedPassword));
-
-        Username = username;
-        PasswordHash = hashedPassword;
-        State = AccountState.Created;
+        options.ValidateAndThrow();
+        
+        Username = options.Username;
+        PasswordHash = options.Password;
+        State = options.InitialState;
         CreatedAt = DateTime.UtcNow;
         
         // Publicar evento de criação de conta
@@ -48,7 +48,7 @@ public class Account : Entity
         
         if (string.IsNullOrWhiteSpace(hashedPassword))
             throw new ArgumentException("Password cannot be empty.", nameof(hashedPassword));
-        bool isAuthenticated = PasswordHash.Equals(hashedPassword, StringComparison.OrdinalIgnoreCase);
+        bool isAuthenticated = PasswordHash.Equals(hashedPassword);
         
         if (isAuthenticated)
         {
@@ -171,7 +171,7 @@ public class Account : Entity
         _characters.Add(character);
         
         // Podemos adicionar um evento de domínio para notificar a adição de um personagem
-        AddDomainEvent(new CharacterAddedToAccountEvent(Id, Username, character.Id, character.Name));
+        AddDomainEvent(new CharacterAddedToAccountEvent(Id, character.Id));
     }
     
     public void RemoveCharacter(Character character)

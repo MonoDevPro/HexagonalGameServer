@@ -4,7 +4,7 @@ using Moq;
 using Server.Application.Ports.Outbound.Security;
 using Server.Application.Services;
 using Server.Domain.Entities;
-using Server.Domain.Enum;
+using Server.Domain.Enums;
 using Server.Domain.Events;
 using Server.Domain.Repositories;
 using Server.Domain.Services;

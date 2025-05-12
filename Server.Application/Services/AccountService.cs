@@ -1,12 +1,16 @@
 using Server.Domain.Entities;
-using Server.Domain.Enum;
-using Server.Domain.Services;
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Application.Ports.Outbound.Security;
+using Server.Domain.ValueObjects;
+using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Messaging;
+using Server.Domain.Enums;
+using Server.Domain.Policies;
+using Server.Domain.ValueObjects.Account;
 
 namespace Server.Application.Services;
 
-public class AccountService
+public class AccountService : IAccountService
 {
     private readonly IAccountRepository _accountRepository;
     private readonly ICharacterRepository _characterRepository;
@@ -26,35 +30,46 @@ public class AccountService
         _eventPublisher = eventPublisher;
     }
 
-    // Criação e autenticação
-    public async Task CreateAccountAsync(string username, string password)
+    // Criação
+    public async Task<bool> CreateAccountAsync(AccountCreationOptions options)
     {
+        var username = options.Username;
+        var password = options.Password;
+        
         if (await _accountRepository.ExistsAsync(username))
             throw new InvalidOperationException("Username already exists.");
         
         var hashedPassword = _passwordHasher.HashPassword(password);
 
-        var account = new Account(username, hashedPassword);
+        var account = new Account(options);
+        
+        account.ChangePassword(hashedPassword);
+        
         await _accountRepository.AddAsync(account);
         
         await PublishDomainEventsAsync(account);
+
+        return true;
     }
 
-    public async Task<bool> AuthenticateAsync(string username, string password)
+    public async Task<AccountAuthentication?> AuthenticateAsync(string username, string password)
     {
         var account = await _accountRepository.GetByUsernameAsync(username);
         if (account == null)
-            return false;
+            return null;
         
         var hashedPassword = _passwordHasher.HashPassword(password);
 
-        return account.Authenticate(hashedPassword);
+        if (!account.Authenticate(hashedPassword))
+            return null;
+        
+        return AccountAuthentication.Create(account.Id, account.Username, account.State, TimeSpan.FromMinutes(5));
     }
     
     // Gerenciamento de senha
-    public async Task ChangePasswordAsync(string username, string newPassword)
+    public async Task<bool> ChangePasswordAsync(AccountAuthentication authentication, string newPassword)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
         
@@ -63,12 +78,13 @@ public class AccountService
         account.ChangePassword(hashedPassword);
         await _accountRepository.UpdateAsync(account);
         await PublishDomainEventsAsync(account);
+        return true;
     }
     
     // Gerenciamento do estado da conta
-    public async Task<bool> ActivateAccountAsync(string username)
+    public async Task<bool> ActivateAccountAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -80,9 +96,9 @@ public class AccountService
         return success;
     }
     
-    public async Task<bool> BanAccountAsync(string username, string reason)
+    public async Task<bool> BanAccountAsync(AccountAuthentication authentication, string reason)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -94,9 +110,9 @@ public class AccountService
         return success;
     }
     
-    public async Task<bool> LockAccountAsync(string username)
+    public async Task<bool> LockAccountAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -108,9 +124,9 @@ public class AccountService
         return success;
     }
     
-    public async Task<bool> SuspendAccountAsync(string username, TimeSpan duration, string reason)
+    public async Task<bool> SuspendAccountAsync(AccountAuthentication authentication, TimeSpan duration, string reason)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -122,9 +138,9 @@ public class AccountService
         return success;
     }
     
-    public async Task<bool> DeleteAccountAsync(string username)
+    public async Task<bool> DeleteAccountAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -137,9 +153,9 @@ public class AccountService
     }
     
     // Método para obter os possíveis estados para os quais uma conta pode ir
-    public async Task<IReadOnlySet<AccountState>> GetPossibleStateTransitionsAsync(string username)
+    public async Task<IReadOnlySet<AccountState>> GetPossibleStateTransitionsAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -147,9 +163,9 @@ public class AccountService
     }
     
     // Método para obter o estado atual da conta
-    public async Task<AccountState> GetAccountStateAsync(string username)
+    public async Task<AccountState> GetAccountStateAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -157,31 +173,43 @@ public class AccountService
     }
     
     // Gerenciamento de personagens
-    public async Task<IReadOnlyCollection<Character>> GetCharactersAsync(string username)
+    public async Task<IReadOnlyCollection<Character>> GetCharactersAsync(AccountAuthentication authentication)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
         return account.Characters;
     }
     
-    public async Task AddCharacterAsync(string username, Character character)
+    public async Task<bool> AttachCharacterAsync(AccountAuthentication authentication, long characterId)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        if (!authentication.CheckValidation())
+            throw new InvalidOperationException("Invalid authentication.");
+        
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
+
+        if (!await _characterRepository.ExistsAsync(characterId))
+            throw new InvalidOperationException($"Character with id '{characterId}' not exists.");
+        
+        var character = await _characterRepository.GetByIdAsync(characterId);
             
-        account.AddCharacter(character);
-        await _characterRepository.AddAsync(character);
+        account.AddCharacter(character!);
+        await _characterRepository.AddAsync(character!);
         await _accountRepository.UpdateAsync(account);
         
         await PublishDomainEventsAsync(account);
+        return true;
     }
     
-    public async Task RemoveCharacterAsync(string username, long characterId)
+    public async Task<bool> DetachCharacterAsync(AccountAuthentication authentication, long characterId)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        if (!authentication.CheckValidation())
+            throw new InvalidOperationException("Invalid authentication.");
+        
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -194,11 +222,16 @@ public class AccountService
         await _accountRepository.UpdateAsync(account);
         
         await PublishDomainEventsAsync(account);
+
+        return true;
     }
     
-    public async Task<Character> GetCharacterByIdAsync(string username, long characterId)
+    public async Task<Character> GetCharacterByIdAsync(AccountAuthentication authentication, long characterId)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        if (!authentication.CheckValidation())
+            throw new InvalidOperationException("Invalid authentication.");
+        
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             
@@ -209,9 +242,12 @@ public class AccountService
         return character;
     }
     
-    public async Task<Character> GetCharacterByNameAsync(string username, string characterName)
+    public async Task<Character> GetCharacterByNameAsync(AccountAuthentication authentication, string characterName)
     {
-        var account = await _accountRepository.GetByUsernameAsync(username);
+        if (!authentication.CheckValidation())
+            throw new InvalidOperationException("Invalid authentication.");
+        
+        var account = await _accountRepository.GetByUsernameAsync(authentication.Username);
         if (account == null)
             throw new InvalidOperationException("Account not found.");
             

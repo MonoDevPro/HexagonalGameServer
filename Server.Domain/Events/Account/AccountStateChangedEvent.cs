@@ -1,4 +1,4 @@
-using AccountState = Server.Domain.Enum.AccountState;
+using AccountState = Server.Domain.Enums.AccountState;
 
 namespace Server.Domain.Events.Account;
 

@@ -1,6 +1,6 @@
-using Server.Domain.Enum;
+using Server.Domain.Enums;
 
-namespace Server.Domain.ValueObjects;
+namespace Server.Domain.Policies;
 
 /// <summary>
 /// Classe que define e valida as transições possíveis entre estados de conta
