@@ -1,12 +1,16 @@
+using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Messaging;
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Domain.Entities;
 using Server.Domain.Entities.Primitives;
-using Server.Domain.Enum;
-using Server.Domain.Services;
+using Server.Domain.Enums;
+using Server.Domain.Policies;
+using Server.Domain.ValueObjects;
+using Server.Domain.ValueObjects.Character;
 
 namespace Server.Application.Services;
 
-public class CharacterService
+public class CharacterService : ICharacterService
 {
     private readonly ICharacterRepository _characterRepository;
     private readonly IGameEventPublisher _eventPublisher;
@@ -21,163 +25,42 @@ public class CharacterService
     }
 
     // Operações básicas de CRUD
-    public async Task<Character?> GetCharacterByIdAsync(long id)
+    public async Task<Character?> GetCharacterByIdAsync(AccountAuthentication authentication, long id)
     {
+        if (!authentication.CheckValidation())
+            return null;
+        
         return await _characterRepository.GetByIdAsync(id);
     }
 
-    public async Task<Character?> GetCharacterByNameAsync(string name)
+    public async Task<Character?> GetCharacterByNameAsync(AccountAuthentication authentication, string name)
     {
+        if (!authentication.CheckValidation())
+            return null;
+        
         return await _characterRepository.GetByNameAsync(name);
     }
 
-    public async Task<IEnumerable<Character>> GetAllCharactersAsync()
+    public async Task<IEnumerable<Character>> GetAllCharactersAsync(AccountAuthentication authentication)
     {
+        if (!authentication.CheckValidation())
+            return [];
+        
         return await _characterRepository.GetAllAsync();
     }
 
     // Criação de personagem
-    public async Task<Character> CreateCharacterAsync(
-        string name,
-        Stats stats,
-        Vital vital,
-        BoundingBox boundingBox,
-        Direction direction,
-        int floorIndex)
+    public async Task<Character> CreateCharacterAsync(AccountAuthentication authentication, CharacterCreationOptions options)
     {
-        if (await _characterRepository.ExistsAsync(name))
-            throw new InvalidOperationException($"Character with name '{name}' already exists.");
+        if (await _characterRepository.ExistsAsync(options.Name))
+            throw new InvalidOperationException($"Character with name '{options.Name}' already exists.");
 
-        var character = new Character(
-            name,
-            stats,
-            vital,
-            boundingBox,
-            direction,
-            CharacterState.Idle,
-            floorIndex);
-
+        var character = new Character(options);
+        
         await _characterRepository.AddAsync(character);
         await PublishDomainEventsAsync(character);
 
         return character;
-    }
-
-    // Movimento
-    public async Task MoveCharacterAsync(long characterId, Direction direction)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.Move(direction);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task StopCharacterMovementAsync(long characterId)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.StopMoving();
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task ChangeFloorAsync(long characterId, int newFloorIndex)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.ChangeFloor(newFloorIndex);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    // Combate
-    public async Task AttackAsync(long attackerId, long targetId)
-    {
-        var attacker = await GetCharacterOrThrowAsync(attackerId);
-        var target = await GetCharacterOrThrowAsync(targetId);
-        
-        attacker.Attack(target);
-        
-        await _characterRepository.UpdateAsync(attacker);
-        await _characterRepository.UpdateAsync(target);
-        
-        await PublishDomainEventsAsync(attacker);
-        await PublishDomainEventsAsync(target);
-    }
-
-    public async Task TakeDamageAsync(long characterId, double amount)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.TakeDamage(amount);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task HealAsync(long characterId, double amount)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.Heal(amount);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task UseManaAsync(long characterId, double amount)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.UseMana(amount);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task RestoreManaAsync(long characterId, double amount)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.RestoreMana(amount);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task KillCharacterAsync(long characterId)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.Die();
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    public async Task ReviveCharacterAsync(long characterId, double healthPercentage = 0.1)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.Revive(healthPercentage);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
-    }
-
-    // Progressão de personagem
-    public async Task IncreaseStatsAsync(long characterId, Stats statsIncrease)
-    {
-        var character = await GetCharacterOrThrowAsync(characterId);
-        
-        character.IncreaseStats(statsIncrease);
-        
-        await _characterRepository.UpdateAsync(character);
-        await PublishDomainEventsAsync(character);
     }
 
     // Método auxiliar para buscar personagem ou lançar exceção

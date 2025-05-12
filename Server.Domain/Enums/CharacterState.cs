@@ -1,4 +1,4 @@
-namespace Server.Domain.Enum;
+namespace Server.Domain.Enums;
 
 public enum CharacterState : byte
 {

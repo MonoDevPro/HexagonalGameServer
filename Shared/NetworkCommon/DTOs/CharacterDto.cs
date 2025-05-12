@@ -36,11 +36,6 @@ public struct CharacterDto : ISerializable
     public DirectionDto DirectionDto { get; set; }
     
     /// <summary>
-    /// Estado atual do personagem
-    /// </summary>
-    public CharacterStateDto StateDto { get; set; }
-    
-    /// <summary>
     /// Índice do andar/piso onde o personagem está
     /// </summary>
     public int FloorIndex { get; set; }
@@ -56,7 +51,6 @@ public struct CharacterDto : ISerializable
         writer.WriteSerializable(VitalsDto);
         writer.WriteSerializable(BoundingBoxDto);
         writer.WriteByte((byte)DirectionDto);
-        writer.WriteByte((byte)StateDto);
         writer.WriteInt(FloorIndex);
     }
 
@@ -71,7 +65,6 @@ public struct CharacterDto : ISerializable
         VitalsDto = reader.ReadSerializable<VitalsDto>();
         BoundingBoxDto = reader.ReadSerializable<BoundingBoxDto>();
         DirectionDto = (DirectionDto)reader.ReadByte();
-        StateDto = (CharacterStateDto)reader.ReadByte();
         FloorIndex = reader.ReadInt();
     }
 }
