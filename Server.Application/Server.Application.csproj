@@ -19,6 +19,7 @@
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.4" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+      <ProjectReference Include="../Shared/NetworkCommon/NetworkCommon.csproj" />
     </ItemGroup>
 
 </Project>
