@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetworkHexagonal.Core.Application.Ports.Inbound;
+using NetworkHexagonal.Core.Application.Services;
 using NetworkHexagonal.Infrastructure.DependencyInjection;
 
 namespace Server.Worker.Extensions;
@@ -10,23 +11,6 @@ namespace Server.Worker.Extensions;
 /// </summary>
 public static class WorkerServiceExtensions
 {
-    /// <summary>
-    /// Adiciona os serviços do Worker ao container de DI
-    /// </summary>
-    /// <param name="services">Collection de serviços</param>
-    /// <param name="configuration">Configuração da aplicação</param>
-    /// <returns>Collection de serviços com os serviços do Worker registrados</returns>
-    public static IServiceCollection AddWorkerServices(this IServiceCollection services, IConfiguration configuration)
-    {
-        // Adiciona o worker como serviço hospedado
-        services.AddHostedService<Worker>();
-        
-        // Configuração específica do Worker
-        services.Configure<WorkerOptions>(configuration.GetSection("Worker"));
-        
-        return services;
-    }
-
     /// <summary>
     /// Adiciona os serviços de networking ao container de DI
     /// </summary>
@@ -57,26 +41,4 @@ public static class WorkerServiceExtensions
         
         return services;
     }
-}
-
-/// <summary>
-/// Opções de configuração para o Worker
-/// </summary>
-public class WorkerOptions
-{
-    /// <summary>
-    /// Intervalo de atualização do Worker em milissegundos
-    /// </summary>
-    public int UpdateIntervalMs { get; set; } = 15;
-}
-
-/// <summary>
-/// Configuração do servidor de rede
-/// </summary>
-public class ServerConfig
-{
-    /// <summary>
-    /// Porta do servidor
-    /// </summary>
-    public int Port { get; set; }
 }

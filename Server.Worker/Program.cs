@@ -1,6 +1,4 @@
-using NetworkHexagonal.Infrastructure.DependencyInjection;
-using Server.Application.DependencyInjection;
-using Server.Infrastructure.DependencyInjection;
+using Server.Infrastructure.Configuration;
 using Server.Worker.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -9,7 +7,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddLogging(configure => configure.AddConsole());
 
 // Camadas da arquitetura hexagonal
-builder.Services.AddApplicationServices();
+builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Configuração específica do Worker

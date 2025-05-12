@@ -5,20 +5,24 @@ using NetworkHexagonal.Infrastructure.DependencyInjection;
 using Server.Application.Handlers;
 using Server.Application.Ports.Inbound;
 using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Mapping;
+using Server.Application.Ports.Outbound.Messaging;
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Application.Ports.Outbound.Security;
-using Server.Domain.Services;
-using Server.Infrastructure.Messaging;
-using Server.Infrastructure.Out;
-using Server.Infrastructure.Persistence;
-using Server.Infrastructure.Security;
+using Server.Application.Services;
+using Server.Domain.Events.Player;
+using Server.Infrastructure.Outbound;
+using Server.Infrastructure.Outbound.Mapping;
+using Server.Infrastructure.Outbound.Messaging;
+using Server.Infrastructure.Outbound.Persistence.Memory;
+using Server.Infrastructure.Outbound.Security;
 
-namespace Server.Infrastructure.DependencyInjection;
+namespace Server.Infrastructure.Configuration;
 
 /// <summary>
 /// Extensões para registro dos serviços da camada de infraestrutura
 /// </summary>
-public static class InfrastructureServiceExtensions
+public static class ServerServicesExtension
 {
     /// <summary>
     /// Adiciona todos os serviços de infraestrutura ao container de DI
@@ -32,9 +36,27 @@ public static class InfrastructureServiceExtensions
             .AddRepositories(configuration)
             .AddSecurity()
             .AddMessaging()
-            .AddNetworking()
-            .AddNetworkAdapters();
+            .AddMapping() // Adicionado registro de serviços de mapeamento
+            .AddServerNetworking(configuration)
+            .AddCache(configuration);
         
+        return services;
+    }
+
+    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Register persistence services
+        services.AddSingleton<IAccountService, AccountService>();
+        services.AddSingleton<ICharacterService, CharacterService>();
+        services.AddSingleton<IPlayerService, PlayerService>();
+        // Register command handlers
+        services.AddSingleton<IPlayerCommandHandler, PlayerCommandHandler>();
+        return services;
+    }
+
+    public static IServiceCollection AddCache(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<IPlayerCachePort, InMemoryPlayerCache>();
         return services;
     }
     
@@ -76,19 +98,19 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddMessaging(this IServiceCollection services)
     {
         services.AddSingleton<IGameEventPublisher, GameEventPublisher>();
-        services.AddSingleton<IPlayerEventPublisher, PlayerEventPublisher>();
+        services.AddSingleton<IPlayerEventPublisher<PlayerEvent>, PlayerEventPublisher>();
         
         return services;
     }
-    
+
     /// <summary>
-    /// Adiciona os adaptadores de rede ao container de DI
+    /// Adiciona os serviços de mapeamento de DTOs ao container de DI
     /// </summary>
     /// <param name="services">Collection de serviços</param>
-    /// <returns>Collection de serviços com os adaptadores de rede registrados</returns>
-    public static IServiceCollection AddNetworkAdapters(this IServiceCollection services)
+    /// <returns>Collection de serviços com os serviços de mapeamento registrados</returns>
+    public static IServiceCollection AddMapping(this IServiceCollection services)
     {
-        services.AddScoped<IPlayerCommandHandler, NetworkPlayerCommandAdapter>();
+        services.AddSingleton<IDtoMapper, DtoMapper>();
         
         return services;
     }
@@ -100,37 +122,33 @@ public static class InfrastructureServiceExtensions
     {
         var networkConfig = config.GetSection("Network");
 
-        string connectionKey = "default";
+        // Valores padrão
+        string connectionKey = "HexagonalGameServer";
+        int disconnectTimeoutMs = 5000;
+        bool useUnsyncedEvents = false;
 
         // Carregar configuração de rede a partir do arquivo de configuração
-        if (networkConfig != null && networkConfig.Exists())
+        if (networkConfig.Exists())
         {
-            
-            var configChildren = networkConfig.GetChildren();
-
-            foreach (var child in configChildren)
+            connectionKey = networkConfig.GetSection("ConnectionKey").Value ?? connectionKey;
+            var timeoutValue = 0;
+            if (int.TryParse(networkConfig.GetSection("DisconnectTimeoutMs").Value, out timeoutValue))
             {
-                if (child.Key == "ConnectionKey")
-                {
-                    if (child.Value == null)
-                    {
-                        throw new ArgumentNullException(nameof(child.Value), "ConnectionKey cannot be null");
-                    }
-                    connectionKey = child.Value;
-                }
+                disconnectTimeoutMs = timeoutValue;
             }
+            bool.TryParse(networkConfig.GetSection("UseUnsyncedEvents").Value, out useUnsyncedEvents);
         }
 
         services.AddSingleton<INetworkConfiguration>(sp => 
         {
-            var config = new NetworkConfiguration();
-            // Aqui você pode carregar a configuração de rede a partir de um arquivo ou variável de ambiente
-            // Exemplo: config.UpdateIntervalMs = 15;
-            config.DisconnectTimeoutMs = 5000; // Timeout padrão
-            config.ConnectionKey = connectionKey; // Chave de conexão padrão
-            config.UseUnsyncedEvents = false; // Padrão: eventos processados apenas via Update()
-            // Adicione outras configurações conforme necessário
-            return config;
+            var networkConfiguration = new NetworkConfiguration
+            {
+                DisconnectTimeoutMs = disconnectTimeoutMs,
+                ConnectionKey = connectionKey,
+                UseUnsyncedEvents = useUnsyncedEvents
+                // Adicione outras configurações conforme necessário
+            };
+            return networkConfiguration;
         });
 
         // Adiciona serviços do NetworkHexagonal usando a extensão existente
@@ -139,3 +157,4 @@ public static class InfrastructureServiceExtensions
         return services;
     }
 }
+
