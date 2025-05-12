@@ -6,7 +6,7 @@ namespace Server.Domain.Events;
 /// Evento disparado quando uma transição de estado inválida é tentada.
 /// </summary>
 /// <typeparam name="TEnum">O tipo de enum de estado</typeparam>
-public class InvalidStateTransitionEvent<TEnum> : DomainEvent where TEnum : System.Enum
+public abstract class InvalidStateTransitionEvent<TEnum> : DomainEvent where TEnum : System.Enum
 {
     /// <summary>
     /// O estado atual da entidade

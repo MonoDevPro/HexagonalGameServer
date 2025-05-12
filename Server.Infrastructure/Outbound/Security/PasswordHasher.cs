@@ -1,9 +1,8 @@
-using Server.Domain.Services;
 using System.Security.Cryptography;
 using System.Text;
 using Server.Application.Ports.Outbound.Security;
 
-namespace Server.Infrastructure.Security;
+namespace Server.Infrastructure.Outbound.Security;
 
 public class PasswordHasher : IPasswordHasher
 {

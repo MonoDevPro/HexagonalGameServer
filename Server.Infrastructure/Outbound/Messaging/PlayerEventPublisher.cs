@@ -1,245 +1,226 @@
-using System.Threading.Tasks;
+using NetworkCommon.DTOs;
+using NetworkCommon.DTOs.Enum;
+using NetworkCommon.DTOs.Primitives;
+using NetworkCommon.Packets.Client.Account;
+using NetworkCommon.Packets.Client.Character;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Mapping;
+using Server.Application.Ports.Outbound.Messaging;
 using Server.Application.Ports.Outbound.Persistence;
-using Server.Domain.Events.Account;
 using Server.Domain.Events.Player;
-using Server.Domain.Enum;
+using Server.Domain.Events.Player.Account;
+using Server.Domain.Events.Player.Character;
+using Server.Domain.Events.Player.Connection;
 
-namespace Server.Infrastructure.Out;
+namespace Server.Infrastructure.Outbound.Messaging;
 
 /// <summary>
 /// Implementation of the IPlayerEventPublisher interface for sending player events to network clients
 /// </summary>
-public class PlayerEventPublisher : IPlayerEventPublisher
+public class PlayerEventPublisher : IPlayerEventPublisher<PlayerEvent>
 {
     private readonly IPacketSender _packetSender;
-    private readonly IAccountRepository _accountRepository;
-    private readonly ICharacterRepository _characterRepository;
-
+    private readonly IPlayerCachePort _playerCachePort;
+    private readonly IAccountService _accountService;
+    private readonly IGameEventPublisher _gameEventPublisher;
+    private readonly IDtoMapper _dtoMapper;
+    
     public PlayerEventPublisher(
-        IPacketSender packetSender,
-        IAccountRepository accountRepository,
-        ICharacterRepository characterRepository)
+        IPacketSender packetSender, 
+        IPlayerCachePort playerCachePort,
+        IAccountService accountService,
+        IGameEventPublisher gameEventPublisher,
+        IDtoMapper dtoMapper)
     {
         _packetSender = packetSender;
-        _accountRepository = accountRepository;
-        _characterRepository = characterRepository;
+        _playerCachePort = playerCachePort;
+        _accountService = accountService;
+        _gameEventPublisher = gameEventPublisher;
+        _dtoMapper = dtoMapper;
+    }
+
+    private void Subscribers()
+    {
+        _gameEventPublisher.Subscribe<PlayerConnectedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerDisconnectedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerAccountCreationSuccessEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerAccountCreationFailedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerAccountLoginSuccessEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerAccountLoginFailedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterCreationSuccessEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterCreationFailedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterSelectSuccessEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterSelectFailedEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterEnteredWorldEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerCharacterLeftWorldEvent>(PublishAsync);
+        _gameEventPublisher.Subscribe<PlayerChatEvent>(PublishAsync);
     }
 
     // Connection events
     public Task PublishAsync(PlayerConnectedEvent eventData)
     {
-        // Send connection event notification to network
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new ConnectionNotification { Status = "Connected" });
-        
+        // Send player data, etc...
         return Task.CompletedTask;
     }
 
     public Task PublishAsync(PlayerDisconnectedEvent eventData)
     {
-        // Broadcast player disconnection to relevant peers
-        // Could notify friends or party members about disconnection
-        
+        // Notify friends or party members about disconnection
+        // For now just log the event
+        Console.WriteLine($"Player disconnected: {eventData.ConnectionId}");
         return Task.CompletedTask;
     }
     
     // Account events
     public Task PublishAsync(PlayerAccountCreationSuccessEvent eventData)
     {
-        // Send account creation confirmation to the player
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new AccountCreationResponse { Success = true });
+        var packet = new ResponseAccountCreating {
+            AccountId = eventData.AccountId,
+            Message = "Account created successfully"
+        };
         
-        return Task.CompletedTask;
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
     public Task PublishAsync(PlayerAccountCreationFailedEvent eventData)
     {
-        // Send account creation failure notification with reason
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new AccountCreationResponse { Success = false, Reason = eventData.ErrorMessage });
+        var packet = new ResponseAccountCreating {
+            AccountId = 0,
+            Message = eventData.ErrorMessage
+        };
         
-        return Task.CompletedTask;
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
-    public Task PublishAsync(PlayerAccountLoginSuccessEvent eventData)
+    public async Task PublishAsync(PlayerAccountLoginSuccessEvent eventData)
     {
-        // Send login success confirmation and possibly character list
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new LoginResponse { Success = true, Username = eventData.Username });
+        var currentPlayer = await _playerCachePort.GetByUsernameAsync(eventData.Username);
+        var charactersDto = new List<CharacterDto>();
         
-        return Task.CompletedTask;
+        // Add null check for AccountAuthentication and currentPlayer
+        if (currentPlayer != null && currentPlayer.AccountAuthentication != null)
+        {
+            var characters = await _accountService.GetCharactersAsync(currentPlayer.AccountAuthentication);
+            
+            // Usar o mapper para converter cada character para CharacterDto
+            if (characters != null)
+            {
+                charactersDto = characters.Select(c => _dtoMapper.MapToDto(c)).ToList();
+            }
+        }
+        
+        var packet = new ResponseAccountLogging {
+            Username = eventData.Username,
+            Characters = charactersDto,
+            Message = "Login successful"
+        };
+        
+        _packetSender.SendPacket(eventData.ConnectionId, packet);
     }
 
     public Task PublishAsync(PlayerAccountLoginFailedEvent eventData)
     {
-        // Send login failure notification with reason
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new LoginResponse { Success = false, Reason = eventData.ErrorMessage });
+        var packet = new ResponseAccountLogging {
+            Username = eventData.Username,
+            Message = eventData.ErrorMessage
+        };
         
-        return Task.CompletedTask;
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
     
     // Character events
     public Task PublishAsync(PlayerCharacterCreationSuccessEvent eventData)
     {
-        // Send character creation confirmation to the player
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new CharacterCreationResponse { Success = true, CharacterName = eventData.CharacterName });
+        // Criar um DTO mínimo com as informações do evento
+        var characterDto = _dtoMapper.CreateMinimalCharacterDto(eventData.CharacterName);
         
-        return Task.CompletedTask;
+        var packet = new ResponseCharacterCreating {
+            CharacterId = 0, // Não temos o ID nesse evento
+            Character = characterDto
+        };
+        
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
     public Task PublishAsync(PlayerCharacterCreationFailedEvent eventData)
     {
-        // Send character creation failure notification with reason
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new CharacterCreationResponse { Success = false, Reason = eventData.ErrorMessage });
+        // Since there's no specific error message field in ResponseCharacterCreating,
+        // We could use a special character or create a different packet type
+        var packet = new ResponseCharacterCreating {
+            CharacterId = 0,
+            Character = new CharacterDto() // DTO vazio para indicar falha
+        };
         
-        return Task.CompletedTask;
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
     public Task PublishAsync(PlayerCharacterSelectSuccessEvent eventData)
     {
-        // Send character selection confirmation and possibly world data
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new CharacterSelectResponse { Success = true, CharacterId = eventData.CharacterId });
+        // Criar um DTO com as informações mínimas do evento
+        var characterDto = _dtoMapper.CreateMinimalCharacterDto(eventData.CharacterName, eventData.CharacterId);
         
-        return Task.CompletedTask;
+        var packet = new ResponseCharacterLogging {
+            CharacterId = eventData.CharacterId,
+            CharacterDto = characterDto
+        };
+        
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
     public Task PublishAsync(PlayerCharacterSelectFailedEvent eventData)
     {
-        // Send character selection failure notification with reason
-        // Example: _packetSender.SendPacket(eventData.ConnectionId, new CharacterSelectResponse { Success = false, Reason = eventData.ErrorMessage });
+        var packet = new ResponseCharacterLogging {
+            CharacterId = 0, // Zero para indicar falha
+            CharacterDto = new CharacterDto() // DTO vazio para indicar falha
+        };
         
-        return Task.CompletedTask;
+        return Task.FromResult(_packetSender.SendPacket(eventData.ConnectionId, packet));
     }
 
     public Task PublishAsync(PlayerCharacterEnteredWorldEvent eventData)
     {
-        // Broadcast to nearby players that a new character has entered the world
-        // Would require logic to determine which other players should receive this notification
+        // Criar um DTO com os dados do evento
+        var characterDto = new CharacterDto
+        {
+            Name = eventData.CharacterName,
+            FloorIndex = eventData.FloorIndex,
+            BoundingBoxDto = new BoundingBoxDto
+            {
+                X = (int)eventData.PositionX,
+                Y = (int)eventData.PositionY,
+                Width = 1, // Valores default
+                Height = 1
+            }
+        };
         
-        return Task.CompletedTask;
+        var response = new ResponseCharacterLogging
+        {
+            CharacterId = eventData.CharacterId,
+            CharacterDto = characterDto
+        };
+        
+        // Broadcast to players in vicinity
+        return Task.FromResult(_packetSender.Broadcast(response));
     }
 
     public Task PublishAsync(PlayerCharacterLeftWorldEvent eventData)
     {
-        // Broadcast to nearby players that a character has left the world
-        // Would require logic to determine which other players should receive this notification
+        // For character leaving world, we use ResponseCharacterLogout
+        var packet = new ResponseCharacterLogout {
+            CharacterId = eventData.CharacterId
+        };
         
-        return Task.CompletedTask;
-    }
-    
-    // New gameplay events
-    public Task PublishAsync(PlayerCharacterMovedEvent eventData)
-    {
-        // Broadcast movement to nearby players
-        // Example: _packetSender.BroadcastToNearbyPlayers(eventData.ConnectionId, 
-        //     new CharacterMovementPacket { 
-        //         CharacterId = eventData.CharacterId, 
-        //         Direction = eventData.Direction,
-        //         PositionX = eventData.PositionX,
-        //         PositionY = eventData.PositionY
-        //     });
-        
-        return Task.CompletedTask;
-    }
-    
-    public Task PublishAsync(PlayerCharacterAttackedEvent eventData)
-    {
-        // Broadcast attack to nearby players
-        // Example: _packetSender.BroadcastToNearbyPlayers(eventData.ConnectionId, 
-        //     new CharacterAttackPacket { 
-        //         AttackerId = eventData.AttackerId,
-        //         TargetId = eventData.TargetId,
-        //         Damage = eventData.Damage,
-        //         IsCritical = eventData.IsCritical
-        //     });
-        
-        return Task.CompletedTask;
+        // Broadcast to players in vicinity
+        return Task.FromResult(_packetSender.Broadcast(packet));
     }
     
     public Task PublishAsync(PlayerChatEvent eventData)
     {
-        // Handle different chat types
-        switch (eventData.Type)
-        {
-            case ChatType.Global:
-                // Example: _packetSender.BroadcastGlobal(
-                //     new ChatMessagePacket { 
-                //         SenderName = eventData.CharacterName ?? eventData.Username,
-                //         Message = eventData.Message,
-                //         ChatType = "global"
-                //     });
-                break;
-            
-            case ChatType.Local:
-                // Example: _packetSender.BroadcastToNearbyPlayers(eventData.ConnectionId,
-                //     new ChatMessagePacket { 
-                //         SenderName = eventData.CharacterName ?? eventData.Username,
-                //         Message = eventData.Message,
-                //         ChatType = "local"
-                //     });
-                break;
-            
-            case ChatType.Whisper:
-                // Would need to look up the recipient's connection ID
-                // Example: _packetSender.SendPacket(recipientConnectionId,
-                //     new ChatMessagePacket { 
-                //         SenderName = eventData.CharacterName ?? eventData.Username,
-                //         Message = eventData.Message,
-                //         ChatType = "whisper"
-                //     });
-                break;
-            
-            // Other chat types...
-        }
-        
-        return Task.CompletedTask;
-    }
-    
-    public Task PublishAsync(PlayerItemUsedEvent eventData)
-    {
-        // Inform player of item use result
-        // Example: _packetSender.SendPacket(eventData.ConnectionId,
-        //     new ItemUsedPacket { 
-        //         ItemId = eventData.ItemId,
-        //         ItemName = eventData.ItemName,
-        //         Effect = eventData.Effect,
-        //         WasConsumed = eventData.WasConsumed
-        //     });
-        
-        // If the item has visible effects, broadcast to nearby players
-        // Example: _packetSender.BroadcastToNearbyPlayers(eventData.ConnectionId,
-        //     new ItemUsedVisualEffectPacket { 
-        //         CharacterId = eventData.CharacterId,
-        //         ItemId = eventData.ItemId,
-        //         Effect = eventData.Effect
-        //     });
-        
-        return Task.CompletedTask;
-    }
-    
-    // Generic publish method for any player event
-    public Task PublishAsync(PlayerEvent eventData)
-    {
-        // Handle generic player events based on type
-        if (eventData is PlayerConnectedEvent connectedEvent)
-        {
-            return PublishAsync(connectedEvent);
-        }
-        else if (eventData is PlayerDisconnectedEvent disconnectedEvent)
-        {
-            return PublishAsync(disconnectedEvent);
-        }
-        else if (eventData is PlayerAccountCreationSuccessEvent creationSuccessEvent)
-        {
-            return PublishAsync(creationSuccessEvent);
-        }
-        else if (eventData is PlayerCharacterEnteredWorldEvent enteredWorldEvent)
-        {
-            return PublishAsync(enteredWorldEvent);
-        }
-        // Add conditions for other event types
-        
-        // Log unhandled event types
-        System.Console.WriteLine($"Unhandled player event type: {eventData.GetType().Name}");
-        return Task.CompletedTask;
+        var packet = new ResponseCharacterMessaging {
+            CharacterName = eventData.CharacterName ?? eventData.Username,
+            Message = eventData.Message
+        };
+        return Task.FromResult(_packetSender.Broadcast(packet));
     }
 }

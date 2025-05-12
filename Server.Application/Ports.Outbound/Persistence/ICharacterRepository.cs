@@ -11,4 +11,5 @@ public interface ICharacterRepository
     Task UpdateAsync(Character character);
     Task DeleteAsync(Character character);
     Task<bool> ExistsAsync(string name);
+    Task<bool> ExistsAsync(long id);
 }

@@ -1,123 +1,269 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Server.Application.Factories;
 using Server.Application.Ports.Outbound;
-using Server.Application.Ports.Outbound.Persistence;
+using Server.Application.Ports.Outbound.Messaging;
 using Server.Domain.Entities;
-using Server.Domain.Enum;
-using Server.Domain.Events.Player;
+using Server.Domain.Events.Player.Account;
+using Server.Domain.Events.Player.Character;
+using Server.Domain.Events.Player.Connection;
 
 namespace Server.Application.Services;
 
 /// <summary>
 /// Service responsible for managing active players and their game states
 /// </summary>
-public class PlayerService
+public class PlayerService : IPlayerService
 {
     private readonly ILogger<PlayerService> _logger;
-    private readonly AccountService _accountService;
-    private readonly CharacterService _characterService;
-    private readonly IPlayerEventPublisher _eventPublisher;
-    
-    // Dictionary to track connected players by connection ID
-    private readonly ConcurrentDictionary<int, Player> _connectedPlayers = new();
-    
-    // Dictionary to track players by username (for quick lookups)
-    private readonly ConcurrentDictionary<string, Player> _playersByUsername = new();
+    private readonly IAccountService _accountService;
+    private readonly ICharacterService _characterService;
+    private readonly IPlayerCachePort _playerCache;
+    private readonly IGameEventPublisher _eventPublisher;
 
     public PlayerService(
         ILogger<PlayerService> logger,
-        AccountService accountService,
-        CharacterService characterService,
-        IPlayerEventPublisher eventPublisher)
+        IAccountService accountService,
+        ICharacterService characterService,
+        IPlayerCachePort playerCache,
+        IGameEventPublisher eventPublisher)
     {
         _logger = logger;
         _accountService = accountService;
         _characterService = characterService;
+        _playerCache = playerCache;
         _eventPublisher = eventPublisher;
     }
 
     #region Player Connection Management
+    
+    /// <summary>
+    /// Creates a new player for the given connection ID
+    /// </summary>
+    public async Task CreatePlayerAsync(int connectionId)
+    {
+        _logger.LogInformation("Creating player for connection {ConnectionId}", connectionId);
+        
+        // Create new player instance with the connection ID
+        var player = new Player(connectionId);
+        
+        // Add to player cache
+        if (!await _playerCache.AddAsync(player))
+            return;
+        
+        await PublishPlayerEventsAsync(player);
+    }
+
+    public async Task<bool> CreatePlayerAccountAsync(int connectionId, string username, string password)
+    {
+        _logger.LogInformation("Creating account for player connection {ConnectionId} with username {Username}",
+            connectionId, username);
+
+        // Check if the connection exists
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
+        {
+            throw new InvalidOperationException($"Connection {connectionId} not found.");
+        }
+
+        // Check if username is already in use from cache.
+        if (await _playerCache.ExistsByUsernameAsync(username))
+        {
+            player.AddDomainEvent(new PlayerAccountCreationFailedEvent(
+                connectionId,
+                username,
+                "Username already in use"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return false;
+        }
+
+        var defaultAccount = AccountTemplateFactory.CreatePlayerAccount(username, password);
+
+        // Create the account
+        var result = await _accountService.CreateAccountAsync(defaultAccount);
+        if (!result)
+        {
+            player.AddDomainEvent(new PlayerAccountCreationFailedEvent(
+                connectionId,
+                username,
+                "Account creation failed"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return false;
+        }
+        
+        var authentication = 
+            await _accountService.AuthenticateAsync(username, password);
+
+        if (authentication is null || !player.Authenticate(authentication))
+        {
+            player.AddDomainEvent(new PlayerAccountCreationFailedEvent(
+                connectionId,
+                username,
+                "Failed to authenticate player"
+            ));
+            
+            await PublishPlayerEventsAsync(player);
+            return false;
+        }
+
+        // Atualizar o jogador no cache após autenticação
+        await _playerCache.UpdateAsync(player);
+
+        player.AddDomainEvent(new PlayerAccountCreationSuccessEvent(
+            connectionId,
+            player.AccountAuthentication!.AccountId,
+            player.Username
+        ));
+        
+        await PublishPlayerEventsAsync(player);
+        return true;
+    }
+
+    public async Task<bool> CreatePlayerCharacterAsync(int connectionId, string characterName)
+    {
+        _logger.LogInformation("Creating character for player connection {ConnectionId} with name {CharacterName}",
+            connectionId, characterName);
+
+        // Check if the connection exists
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
+        {
+            throw new InvalidOperationException($"Connection {connectionId} not found.");
+        }
+
+        // Check if the player is authenticated
+        if (player.AccountAuthentication is null || !player.IsAuthenticated)
+        {
+            player.AddDomainEvent(new PlayerCharacterCreationFailedEvent(
+                connectionId,
+                "",
+                characterName,
+                "Player not authenticated"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return false;
+        }
+
+        var creationOptions = CharacterTemplateFactory.CreateDefault(characterName);
+
+        var character = await _characterService.CreateCharacterAsync(player.AccountAuthentication, creationOptions);
+        
+        var result = await _accountService.AttachCharacterAsync(
+            player.AccountAuthentication, 
+            character.Id);
+
+        if (!result)
+        {
+            player.AddDomainEvent(new PlayerCharacterCreationFailedEvent(
+                connectionId,
+                player.Username,
+                characterName,
+                "Character creation failed"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return false;
+        }
+        
+        await PublishPlayerEventsAsync(player);
+        return true;
+    }
 
     /// <summary>
-    /// Registers a new player connection and associates it with the given username
+    /// Authenticates a player with the given username
     /// </summary>
-    public async Task<bool> RegisterPlayerAsync(int connectionId, string username)
+    public async Task AuthenticatePlayerAsync(int connectionId, string username, string password)
     {
-        _logger.LogInformation("Registering player connection {ConnectionId} for username {Username}", connectionId, username);
-        
-        // Create new player instance
-        var player = new Player(connectionId, username);
-        
-        // Add to dictionaries
-        if (!_connectedPlayers.TryAdd(connectionId, player))
+        _logger.LogInformation("Authenticating player connection {ConnectionId} with username {Username}",
+            connectionId, username);
+
+        // Check if the connection exists
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
         {
-            _logger.LogWarning("Connection ID {ConnectionId} already registered", connectionId);
-            return false;
+            throw new InvalidOperationException($"Connection {connectionId} not found.");
+        }
+
+        // Check if username is already in use by another connection
+        var existingPlayer = await _playerCache.GetByUsernameAsync(username);
+        if (existingPlayer != null && existingPlayer.ConnectionId != connectionId)
+        {
+            player.AddDomainEvent(new PlayerAccountLoginFailedEvent(
+                connectionId,
+                username,
+                "Username already connected from another session"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return;
+        }
+
+        var accountAuthentication = await _accountService.AuthenticateAsync(username, password);
+
+        if (accountAuthentication is null)
+        {
+            player.AddDomainEvent(new PlayerAccountLoginFailedEvent(
+                connectionId,
+                username,
+                "Invalid username or password"
+            ));
+            await PublishPlayerEventsAsync(player);
+            return;
         }
         
-        if (!_playersByUsername.TryAdd(username, player))
+        // Authenticate the player with the account
+        if (!player.Authenticate(accountAuthentication))
         {
-            // Username already connected, remove the connection ID entry we just added
-            _connectedPlayers.TryRemove(connectionId, out _);
-            _logger.LogWarning("Username {Username} is already connected from another session", username);
-            return false;
+            await PublishPlayerEventsAsync(player);
+            return;
         }
         
-        // Load player's characters for quick access
-        var characters = await _accountService.GetCharactersAsync(username);
-        player.SetAvailableCharacters(characters);
+        // Atualizar o jogador no cache
+        await _playerCache.UpdateAsync(player);
+
+        player.AddDomainEvent(new PlayerAccountLoginSuccessEvent(
+            connectionId,
+            username
+        ));
         
-        _logger.LogInformation("Player registered successfully: {Username} (ConnectionId: {ConnectionId})", 
-            username, connectionId);
-        
-        return true;
+        await PublishPlayerEventsAsync(player);
     }
 
     /// <summary>
     /// Unregisters a player connection
     /// </summary>
-    public async Task<bool> UnregisterPlayerAsync(int connectionId)
+    public async Task UnregisterPlayerAsync(int connectionId)
     {
         _logger.LogInformation("Unregistering player connection {ConnectionId}", connectionId);
-        
+
         // Check if the connection exists
-        if (!_connectedPlayers.TryGetValue(connectionId, out var player))
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
         {
-            _logger.LogWarning("Cannot unregister connection {ConnectionId}: not found", connectionId);
-            return false;
+            throw new InvalidOperationException($"Connection {connectionId} not found.");
         }
+
+        player.Logout();
         
-        // If player has an active character, handle appropriate cleanup
-        if (player.ActiveCharacterId.HasValue)
-        {
-            await DeactivateCharacterAsync(connectionId);
-        }
-        
-        // Remove from dictionaries
-        _connectedPlayers.TryRemove(connectionId, out _);
-        _playersByUsername.TryRemove(player.Username, out _);
-        
-        _logger.LogInformation("Player unregistered successfully: {Username} (ConnectionId: {ConnectionId})", 
-            player.Username, connectionId);
-        
-        return true;
+        // Capturar eventos antes de remover do cache
+        await PublishPlayerEventsAsync(player);
+
+        // Remove from cache
+        await _playerCache.RemoveAsync(connectionId);
     }
-    
+
     /// <summary>
     /// Handles disconnection of a player
     /// </summary>
     public async Task HandleDisconnectionAsync(int connectionId, string reason)
     {
         _logger.LogInformation("Handling disconnection for connection {ConnectionId}: {Reason}", connectionId, reason);
-        
-        if (_connectedPlayers.TryGetValue(connectionId, out var player))
+
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player != null)
         {
             // Publish disconnection event
             await _eventPublisher.PublishAsync(new PlayerDisconnectedEvent(connectionId, reason));
-            
+
             // Unregister the player
             await UnregisterPlayerAsync(connectionId);
         }
@@ -125,187 +271,126 @@ public class PlayerService
 
     #endregion
 
-    #region Character Management
+    /// <summary>
+    /// Seleciona um personagem para o jogador
+    /// </summary>
+    public async Task<bool> SelectCharacterAsync(int connectionId, long characterId)
+    {
+        _logger.LogInformation("Selecionando personagem {CharacterId} para a conexão {ConnectionId}", 
+            characterId, connectionId);
 
-    /// <summary>
-    /// Activates a character for the player
-    /// </summary>
-    public async Task<bool> ActivateCharacterAsync(int connectionId, long characterId)
-    {
-        _logger.LogInformation("Activating character {CharacterId} for connection {ConnectionId}", characterId, connectionId);
-        
-        // Check if the connection exists
-        if (!_connectedPlayers.TryGetValue(connectionId, out var player))
+        // Obter jogador do cache
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
         {
-            _logger.LogWarning("Cannot activate character: connection {ConnectionId} not found", connectionId);
+            _logger.LogWarning("Não foi possível selecionar personagem: conexão {ConnectionId} não encontrada", connectionId);
             return false;
         }
-        
-        try
+
+        // Verificar se o jogador está autenticado
+        if (player.AccountAuthentication is null || !player.IsAuthenticated)
         {
-            // Verify if the character exists and belongs to this player
-            var character = await _accountService.GetCharacterByIdAsync(player.Username, characterId);
-            if (character == null)
-            {
-                _logger.LogWarning("Character {CharacterId} not found or doesn't belong to player {Username}", 
-                    characterId, player.Username);
-                return false;
-            }
-            
-            // Set the active character
-            player.SetActiveCharacter(characterId);
-            
-            _logger.LogInformation("Character {CharacterId} activated for player {Username}", 
-                characterId, player.Username);
-            
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error activating character {CharacterId} for player {Username}", 
-                characterId, player.Username);
+            player.AddDomainEvent(new PlayerCharacterSelectFailedEvent(
+                connectionId,
+                characterId,
+                player.Username,
+                "Jogador não autenticado"
+            ));
+            await PublishPlayerEventsAsync(player);
             return false;
         }
-    }
+
+        // Verificar se o personagem pertence ao jogador
+        var characters = await _accountService.GetCharactersAsync(player.AccountAuthentication);
+        var character = characters.FirstOrDefault(c => c.Id == characterId);
     
-    /// <summary>
-    /// Deactivates the current character for the player
-    /// </summary>
-    public async Task<bool> DeactivateCharacterAsync(int connectionId)
-    {
-        _logger.LogInformation("Deactivating character for connection {ConnectionId}", connectionId);
-        
-        // Check if the connection exists
-        if (!_connectedPlayers.TryGetValue(connectionId, out var player))
+        if (character == null)
         {
-            _logger.LogWarning("Cannot deactivate character: connection {ConnectionId} not found", connectionId);
+            player.AddDomainEvent(new PlayerCharacterSelectFailedEvent(
+                connectionId,
+                characterId,
+                player.Username,
+                "Personagem não encontrado ou não pertence a esta conta"
+            ));
+            await PublishPlayerEventsAsync(player);
             return false;
         }
-        
-        if (!player.ActiveCharacterId.HasValue)
+
+        // Selecionar o personagem
+        if (!player.SelectCharacter(character))
         {
-            _logger.LogInformation("No active character to deactivate for player {Username}", player.Username);
+            await PublishPlayerEventsAsync(player);
             return false;
         }
-        
-        long characterId = player.ActiveCharacterId.Value;
-        
-        // Clear the active character
-        player.ClearActiveCharacter();
-        
-        _logger.LogInformation("Character {CharacterId} deactivated for player {Username}", 
-            characterId, player.Username);
-        
+
+        // Atualizar o jogador no cache
+        await _playerCache.UpdateAsync(player);
+
+        // Publicar eventos gerados
+        await PublishPlayerEventsAsync(player);
+    
         return true;
     }
 
-    #endregion
+    /// <summary>
+    /// Logout do personagem atual do jogador
+    /// </summary>
+    public async Task<bool> LogoutCharacterAsync(int connectionId)
+    {
+        _logger.LogInformation("Desativando personagem para a conexão {ConnectionId}", connectionId);
 
-    #region Game Actions
+        // Obter jogador do cache
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
+        {
+            _logger.LogWarning("Não foi possível fazer logout do personagem: conexão {ConnectionId} não encontrada", connectionId);
+            return false;
+        }
+
+        // Usa o método UnselectCharacter da entidade Player para desselecionar o personagem
+        player.UnselectCharacter();
+        
+        // Atualizar o jogador no cache
+        await _playerCache.UpdateAsync(player);
+        
+        // Publicar os eventos gerados
+        await PublishPlayerEventsAsync(player);
+
+        return true;
+    }
 
     /// <summary>
-    /// Processes a chat message from a player
+    /// Processa uma mensagem de chat do jogador
     /// </summary>
     public async Task ProcessChatMessageAsync(int connectionId, string message)
     {
-        _logger.LogInformation("Processing chat message from connection {ConnectionId}", connectionId);
-        
-        // Check if the connection exists
-        if (!_connectedPlayers.TryGetValue(connectionId, out var player))
+        _logger.LogInformation("Processando mensagem de chat da conexão {ConnectionId}", connectionId);
+
+        // Obter jogador do cache (operação rápida, sem acesso ao banco)
+        var player = await _playerCache.GetAsync(connectionId);
+        if (player == null)
         {
-            _logger.LogWarning("Cannot process chat message: connection {ConnectionId} not found", connectionId);
+            _logger.LogWarning("Não foi possível processar mensagem de chat: conexão {ConnectionId} não encontrada", connectionId);
             return;
         }
+
+        // A entidade Player é responsável por validar e adicionar os eventos apropriados
+        bool success = player.SendChatMessage(message);
         
-        // Handle chat message logic - this could involve broadcasting to nearby players,
-        // global chat, party chat, etc. depending on your game design
-        
-        // For now, we'll just log the message
-        _logger.LogInformation("Chat message from {Username}: {Message}", player.Username, message);
-        
-        // TODO: Implement actual chat message handling based on your game requirements
-        // This might involve:
-        // 1. Checking for chat commands (e.g., /whisper, /party, /global)
-        // 2. Filtering inappropriate content
-        // 3. Broadcasting to appropriate recipients
+        // Publicar todos os eventos gerados
+        await PublishPlayerEventsAsync(player);
     }
 
     /// <summary>
-    /// Processes an item use action from a player
+    /// Publica todos os eventos armazenados na entidade Player
     /// </summary>
-    public async Task UseItemAsync(int connectionId, long characterId, int itemId)
+    private async Task PublishPlayerEventsAsync(Player player)
     {
-        _logger.LogInformation("Processing item use from connection {ConnectionId}: Item {ItemId}", 
-            connectionId, itemId);
-        
-        // Check if the connection exists
-        if (!_connectedPlayers.TryGetValue(connectionId, out var player))
+        var events = player.GetDomainEvents();
+        foreach (var domainEvent in events)
         {
-            _logger.LogWarning("Cannot process item use: connection {ConnectionId} not found", connectionId);
-            return;
+            await _eventPublisher.PublishAsync(domainEvent);
         }
-        
-        // Check if the character matches the active character
-        if (!player.ActiveCharacterId.HasValue || player.ActiveCharacterId != characterId)
-        {
-            _logger.LogWarning("Cannot use item: character mismatch for player {Username}", player.Username);
-            return;
-        }
-        
-        // Handle item use logic
-        // TODO: Implement actual item use based on your game requirements
-        // This would likely involve:
-        // 1. Looking up the item in character inventory
-        // 2. Applying item effects
-        // 3. Updating character state
-        // 4. Notifying nearby players if needed
-        
-        _logger.LogInformation("Item {ItemId} used by character {CharacterId}", itemId, characterId);
+        player.ClearDomainEvents();
     }
-
-    #endregion
-
-    #region Player Lookup Methods
-
-    /// <summary>
-    /// Gets a player by their connection ID
-    /// </summary>
-    public Player GetPlayerByConnectionId(int connectionId)
-    {
-        return _connectedPlayers.TryGetValue(connectionId, out var player) ? player : null;
-    }
-
-    /// <summary>
-    /// Gets a player by their username
-    /// </summary>
-    public Player GetPlayerByUsername(string username)
-    {
-        return _playersByUsername.TryGetValue(username, out var player) ? player : null;
-    }
-
-    /// <summary>
-    /// Gets all currently connected players
-    /// </summary>
-    public IReadOnlyCollection<Player> GetAllConnectedPlayers()
-    {
-        return _connectedPlayers.Values.ToList().AsReadOnly();
-    }
-
-    /// <summary>
-    /// Checks if a player with the given username is connected
-    /// </summary>
-    public bool IsPlayerConnected(string username)
-    {
-        return _playersByUsername.ContainsKey(username);
-    }
-
-    /// <summary>
-    /// Gets the count of connected players
-    /// </summary>
-    public int GetConnectedPlayerCount()
-    {
-        return _connectedPlayers.Count;
-    }
-
-    #endregion
 }
