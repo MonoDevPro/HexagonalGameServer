@@ -51,6 +51,8 @@ public static class ServerServicesExtension
         services.AddSingleton<IPlayerService, PlayerService>();
         // Register command handlers
         services.AddSingleton<IPlayerCommandHandler, PlayerCommandHandler>();
+        // Register monitoring services
+        services.AddSingleton<IServerMonitoringPort, ServerMonitoringService>();
         return services;
     }
 
