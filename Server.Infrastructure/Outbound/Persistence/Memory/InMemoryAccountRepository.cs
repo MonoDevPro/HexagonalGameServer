@@ -1,7 +1,7 @@
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Domain.Entities;
 
-namespace Server.Infrastructure.Persistence;
+namespace Server.Infrastructure.Outbound.Persistence.Memory;
 
 public class InMemoryAccountRepository : IAccountRepository
 {

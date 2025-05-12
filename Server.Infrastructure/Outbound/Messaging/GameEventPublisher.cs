@@ -1,8 +1,8 @@
-using Server.Domain.Events;
-using Server.Domain.Services;
 using System.Collections.Concurrent;
+using Server.Application.Ports.Outbound.Messaging;
+using Server.Domain.Events;
 
-namespace Server.Infrastructure.Messaging;
+namespace Server.Infrastructure.Outbound.Messaging;
 
 public class GameEventPublisher : IGameEventPublisher
 {

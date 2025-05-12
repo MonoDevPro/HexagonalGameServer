@@ -1,7 +1,7 @@
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Domain.Entities;
 
-namespace Server.Infrastructure.Persistence;
+namespace Server.Infrastructure.Outbound.Persistence.Memory;
 
 public class InMemoryCharacterRepository : ICharacterRepository
 {
@@ -74,5 +74,10 @@ public class InMemoryCharacterRepository : ICharacterRepository
     public Task<bool> ExistsAsync(string name)
     {
         return Task.FromResult(_charactersByName.ContainsKey(name));
+    }
+
+    public Task<bool> ExistsAsync(long id)
+    {
+        return Task.FromResult(_characters.ContainsKey(id));
     }
 }
