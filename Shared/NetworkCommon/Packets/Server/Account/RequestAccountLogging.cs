@@ -1,8 +1,7 @@
-using System;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ServerReceiver.Account;
+namespace NetworkCommon.Packets.Server.Account;
 
 /// <summary>
 /// Pacote de requisição para login de conta

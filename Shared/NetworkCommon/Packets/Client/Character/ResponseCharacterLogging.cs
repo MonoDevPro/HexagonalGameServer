@@ -1,17 +1,23 @@
+using NetworkCommon.DTOs;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ServerReceiver.Character;
+namespace NetworkCommon.Packets.Client.Character;
 
 /// <summary>
-/// Pacote de requisição para utilizar um personagem
+/// Pacote de resposta para login de personagem
 /// </summary>
-public class RequestCharacterLogging : IPacket, ISerializable
+public class ResponseCharacterLogging : IPacket, ISerializable
 {
     /// <summary>
-    /// ID do personagem a ser utilizado
+    /// ID do personagem logado
     /// </summary>
     public long CharacterId { get; set; }
+    
+    /// <summary>
+    /// Dados do personagem logado
+    /// </summary>
+    public CharacterDto CharacterDto { get; set; }
     
     /// <summary>
     /// Serializa o pacote para envio pela rede
@@ -20,6 +26,7 @@ public class RequestCharacterLogging : IPacket, ISerializable
     public void Serialize(INetworkWriter writer)
     {
         writer.WriteLong(CharacterId);
+        writer.WriteSerializable(CharacterDto);
     }
     
     /// <summary>
@@ -29,6 +36,7 @@ public class RequestCharacterLogging : IPacket, ISerializable
     public void Deserialize(INetworkReader reader)
     {
         CharacterId = reader.ReadLong();
+        CharacterDto = reader.ReadSerializable<CharacterDto>();
     }
     
     /// <summary>
@@ -37,6 +45,6 @@ public class RequestCharacterLogging : IPacket, ISerializable
     /// <returns>String representando o pacote</returns>
     public override string ToString()
     {
-        return $"RequestCharacterUsing: CharacterId: {CharacterId}";
+        return $"ResponseCharacterLogging: CharacterId: {CharacterId}, Character: {CharacterDto}";
     }
 }

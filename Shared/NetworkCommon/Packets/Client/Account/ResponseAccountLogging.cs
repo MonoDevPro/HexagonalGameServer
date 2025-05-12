@@ -1,40 +1,57 @@
+using NetworkCommon.DTOs;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ClientReceiver.Character;
+namespace NetworkCommon.Packets.Client.Account;
 
 /// <summary>
-/// Pacote de resposta para mensagens de chat do personagem
+/// Pacote de resposta para login de conta
 /// </summary>
-public class ResponseCharacterMessaging : IPacket, ISerializable
+public class ResponseAccountLogging : IPacket, ISerializable
 {
     /// <summary>
-    /// Nome do personagem que enviou a mensagem
+    /// Dados da conta que fez login
     /// </summary>
-    public string CharacterName { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    
+    public List<CharacterDto> Characters { get; set; } = [];
     
     /// <summary>
-    /// Conteúdo da mensagem
+    /// Mensagem adicional (sucesso ou erro)
     /// </summary>
     public string Message { get; set; } = string.Empty;
-
+    
     /// <summary>
     /// Serializa o pacote para envio pela rede
     /// </summary>
     /// <param name="writer">Escritor de rede</param>
     public void Serialize(INetworkWriter writer)
     {
-        writer.WriteString(CharacterName);
+        writer.WriteString(Username);
+        
+        writer.WriteInt(Characters.Count);
+        foreach (var character in Characters)
+        {
+            writer.WriteSerializable(character);
+        }
+
         writer.WriteString(Message);
     }
-
+    
     /// <summary>
     /// Deserializa o pacote recebido da rede
     /// </summary>
     /// <param name="reader">Leitor de rede</param>
     public void Deserialize(INetworkReader reader)
     {
-        CharacterName = reader.ReadString();
+        Username = reader.ReadString();
+        
+        var count = reader.ReadInt();
+        for (int i = 0; i < count; i++)
+        {
+            Characters.Add(reader.ReadSerializable<CharacterDto>());
+        }
+        
         Message = reader.ReadString();
     }
     
@@ -44,6 +61,6 @@ public class ResponseCharacterMessaging : IPacket, ISerializable
     /// <returns>String representando o pacote</returns>
     public override string ToString()
     {
-        return $"ResponseCharacterMessaging: CharacterName: {CharacterName}, Message: {Message}";
+        return $"ResponseAccountLogging: {Username}, Message: {Message}";
     }
 }

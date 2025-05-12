@@ -1,7 +1,7 @@
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ClientReceiver.Account;
+namespace NetworkCommon.Packets.Client.Account;
 
 /// <summary>
 /// Pacote de resposta para criação de conta

@@ -1,23 +1,17 @@
-using NetworkCommon.DTOs;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ClientReceiver.Character;
+namespace NetworkCommon.Packets.Server.Character;
 
 /// <summary>
-/// Pacote de resposta para login de personagem
+/// Pacote de requisição para logout de personagem
 /// </summary>
-public class ResponseCharacterLogging : IPacket, ISerializable
+public class RequestCharacterLogout : IPacket, ISerializable
 {
     /// <summary>
-    /// ID do personagem logado
+    /// Motivo do logout (opcional)
     /// </summary>
-    public long CharacterId { get; set; }
-    
-    /// <summary>
-    /// Dados do personagem logado
-    /// </summary>
-    public CharacterDto CharacterDto { get; set; }
+    public string Reason { get; set; } = string.Empty;
     
     /// <summary>
     /// Serializa o pacote para envio pela rede
@@ -25,8 +19,7 @@ public class ResponseCharacterLogging : IPacket, ISerializable
     /// <param name="writer">Escritor de rede</param>
     public void Serialize(INetworkWriter writer)
     {
-        writer.WriteLong(CharacterId);
-        writer.WriteSerializable(CharacterDto);
+        writer.WriteString(Reason);
     }
     
     /// <summary>
@@ -35,16 +28,15 @@ public class ResponseCharacterLogging : IPacket, ISerializable
     /// <param name="reader">Leitor de rede</param>
     public void Deserialize(INetworkReader reader)
     {
-        CharacterId = reader.ReadLong();
-        CharacterDto = reader.ReadSerializable<CharacterDto>();
+        Reason = reader.ReadString();
     }
-    
+
     /// <summary>
     /// Retorna uma representação em string do pacote para depuração
     /// </summary>
     /// <returns>String representando o pacote</returns>
     public override string ToString()
     {
-        return $"ResponseCharacterLogging: CharacterId: {CharacterId}, Character: {CharacterDto}";
+        return $"RequestCharacterLogout: Reason: {Reason}";
     }
 }

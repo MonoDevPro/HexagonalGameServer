@@ -1,48 +1,40 @@
-using NetworkCommon.DTOs;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ClientReceiver.Account;
+namespace NetworkCommon.Packets.Client.Character;
 
 /// <summary>
-/// Pacote de resposta para login de conta
+/// Pacote de resposta para mensagens de chat do personagem
 /// </summary>
-public class ResponseAccountLogging : IPacket, ISerializable
+public class ResponseCharacterMessaging : IPacket, ISerializable
 {
     /// <summary>
-    /// ID da conta que fez login
+    /// Nome do personagem que enviou a mensagem
     /// </summary>
-    public long AccountId { get; set; }
+    public string CharacterName { get; set; } = string.Empty;
     
     /// <summary>
-    /// Dados da conta que fez login
-    /// </summary>
-    public AccountDto AccountDto { get; set; }
-    
-    /// <summary>
-    /// Mensagem adicional (sucesso ou erro)
+    /// Conteúdo da mensagem
     /// </summary>
     public string Message { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Serializa o pacote para envio pela rede
     /// </summary>
     /// <param name="writer">Escritor de rede</param>
     public void Serialize(INetworkWriter writer)
     {
-        writer.WriteLong(AccountId);
-        writer.WriteSerializable(AccountDto);
+        writer.WriteString(CharacterName);
         writer.WriteString(Message);
     }
-    
+
     /// <summary>
     /// Deserializa o pacote recebido da rede
     /// </summary>
     /// <param name="reader">Leitor de rede</param>
     public void Deserialize(INetworkReader reader)
     {
-        AccountId = reader.ReadLong();
-        AccountDto = reader.ReadSerializable<AccountDto>();
+        CharacterName = reader.ReadString();
         Message = reader.ReadString();
     }
     
@@ -52,6 +44,6 @@ public class ResponseAccountLogging : IPacket, ISerializable
     /// <returns>String representando o pacote</returns>
     public override string ToString()
     {
-        return $"ResponseAccountLogging: AccountId: {AccountId}, Message: {Message}";
+        return $"ResponseCharacterMessaging: CharacterName: {CharacterName}, Message: {Message}";
     }
 }

@@ -1,7 +1,7 @@
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ServerReceiver.Character;
+namespace NetworkCommon.Packets.Server.Character;
 
 /// <summary>
 /// Pacote de requisição para seleção de personagem

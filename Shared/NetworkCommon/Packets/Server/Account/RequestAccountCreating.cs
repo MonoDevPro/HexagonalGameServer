@@ -1,25 +1,31 @@
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Core.Domain.Models;
 
-namespace NetworkCommon.Packets.ServerReceiver.Character;
+namespace NetworkCommon.Packets.Server.Account;
 
 /// <summary>
-/// Pacote de requisição para criação de personagem
+/// Pacote de requisição para criação de conta
 /// </summary>
-public class RequestCharacterCreating : IPacket, ISerializable
+public class RequestAccountCreating : IPacket, ISerializable
 {
     /// <summary>
-    /// Nome do personagem a ser criado
+    /// Nome da conta a ser criada
     /// </summary>
-    public string CharacterName { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
     
+    /// <summary>
+    /// Senha da conta a ser criada
+    /// </summary>
+    public string Password { get; set; } = string.Empty;
+
     /// <summary>
     /// Serializa o pacote para envio pela rede
     /// </summary>
     /// <param name="writer">Escritor de rede</param>
     public void Serialize(INetworkWriter writer)
     {
-        writer.WriteString(CharacterName);
+        writer.WriteString(AccountName);
+        writer.WriteString(Password);
     }
 
     /// <summary>
@@ -28,15 +34,16 @@ public class RequestCharacterCreating : IPacket, ISerializable
     /// <param name="reader">Leitor de rede</param>
     public void Deserialize(INetworkReader reader)
     {
-        CharacterName = reader.ReadString();
+        AccountName = reader.ReadString();
+        Password = reader.ReadString();
     }
-    
+
     /// <summary>
     /// Retorna uma representação em string do pacote para depuração
     /// </summary>
     /// <returns>String representando o pacote</returns>
     public override string ToString()
     {
-        return $"RequestCharacterCreating: {base.ToString()}, CharacterName: {CharacterName}";
+        return $"RequestAccountCreating: AccountName: {AccountName}, Password: {Password}";
     }
 }
