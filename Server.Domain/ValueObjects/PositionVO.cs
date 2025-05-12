@@ -1,4 +1,4 @@
-using Server.Domain.Enum;
+using Server.Domain.Enums;
 
 namespace Server.Domain.ValueObjects;
 
