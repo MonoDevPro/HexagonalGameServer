@@ -1,6 +1,4 @@
-using System;
-
-namespace Server.Domain.Events.Player;
+namespace Server.Domain.Events.Player.Account;
 
 /// <summary>
 /// Evento disparado quando um login de conta é bem-sucedido

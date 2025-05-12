@@ -1,6 +1,4 @@
-using System;
-
-namespace Server.Domain.Events.Player;
+namespace Server.Domain.Events.Player.Character;
 
 /// <summary>
 /// Evento disparado quando um personagem do jogador sai do mundo do jogo

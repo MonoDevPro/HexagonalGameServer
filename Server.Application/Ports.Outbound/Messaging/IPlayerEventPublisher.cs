@@ -1,14 +1,17 @@
-using Server.Domain.Events.Account;
 using Server.Domain.Events.Player;
+using Server.Domain.Events.Player.Account;
+using Server.Domain.Events.Player.Character;
+using Server.Domain.Events.Player.Connection;
 
-namespace Server.Application.Ports.Outbound;
+namespace Server.Application.Ports.Outbound.Messaging;
 
 /// <summary>
 /// Interface for publishing player-related events to external systems
 /// </summary>
-public interface IPlayerEventPublisher
+public interface IPlayerEventPublisher<TEvent>
+    where TEvent : PlayerEvent
 {
-    // Connection events
+    // ConnectionEvents
     Task PublishAsync(PlayerConnectedEvent eventData);
     Task PublishAsync(PlayerDisconnectedEvent eventData);
     
@@ -27,11 +30,5 @@ public interface IPlayerEventPublisher
     Task PublishAsync(PlayerCharacterLeftWorldEvent eventData);
     
     // Gameplay events
-    Task PublishAsync(PlayerCharacterMovedEvent eventData);
-    Task PublishAsync(PlayerCharacterAttackedEvent eventData);
     Task PublishAsync(PlayerChatEvent eventData);
-    Task PublishAsync(PlayerItemUsedEvent eventData);
-    
-    // Generic publish method for any player event
-    Task PublishAsync(PlayerEvent eventData);
 }

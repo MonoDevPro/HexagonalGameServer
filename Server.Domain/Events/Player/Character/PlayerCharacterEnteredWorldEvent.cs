@@ -1,9 +1,9 @@
-namespace Server.Domain.Events.Player;
+namespace Server.Domain.Events.Player.Character;
 
 /// <summary>
 /// Evento disparado quando um personagem do jogador entra no mundo do jogo
 /// </summary>
-public class PlayerCharacterEnteredWorldEvent : PlayerEvent
+public class PlayerCharacterEnteredWorldEvent : PlayerSuccessEvent
 {
     /// <summary>
     /// ID do personagem que entrou no mundo
@@ -23,21 +23,21 @@ public class PlayerCharacterEnteredWorldEvent : PlayerEvent
     /// <summary>
     /// Posição X do personagem
     /// </summary>
-    public float PositionX { get; }
+    public int PositionX { get; }
     
     /// <summary>
     /// Posição Y do personagem
     /// </summary>
-    public float PositionY { get; }
+    public int PositionY { get; }
 
     public PlayerCharacterEnteredWorldEvent(
         int connectionId, 
         long characterId, 
         string characterName, 
         int floorIndex, 
-        float positionX, 
-        float positionY) 
-        : base(connectionId)
+        int positionX, 
+        int positionY) 
+        : base(connectionId, $"Character {characterName} Entered in World!")
     {
         CharacterId = characterId;
         CharacterName = characterName;

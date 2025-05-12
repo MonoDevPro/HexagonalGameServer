@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
+using Server.Domain.Enums;
 using Server.Domain.Events;
 using Server.Domain.Events.Player;
+using Server.Domain.Events.Player.Account;
+using Server.Domain.Events.Player.Character;
+using Server.Domain.Events.Player.Connection;
+using Server.Domain.Policies;
 
 namespace Server.Domain.Entities;
 
@@ -16,16 +21,22 @@ public class Player : Entity
     /// ID de conexão na camada de rede
     /// </summary>
     public int ConnectionId { get; private set; }
+
+    /// <summary>
+    /// Nome de usuário do jogador
+    /// </summary>
+    public string Username => AccountAuthentication?.Username ?? String.Empty;
+
+    /// <summary>
+    /// Estado da autenticação do player
+    /// </summary>
+    public bool IsAuthenticated => AccountAuthentication != null && 
+                                   AccountAuthentication.CheckValidation();
     
     /// <summary>
-    /// Conta associada ao jogador (pode ser null antes da autenticação)
+    /// Estado de seleção de personagem
     /// </summary>
-    public Account? Account { get; private set; }
-    
-    /// <summary>
-    /// Personagem atualmente selecionado (pode ser null se estiver apenas logado na conta)
-    /// </summary>
-    public Character? SelectedCharacter { get; private set; }
+    public bool HasSelectedCharacter => SelectedCharacterId != -1;
     
     /// <summary>
     /// Data e hora da conexão
@@ -37,20 +48,10 @@ public class Player : Entity
     /// </summary>
     public DateTime LastActivity { get; private set; }
     
-    /// <summary>
-    /// Latência atual em milissegundos
-    /// </summary>
-    public int CurrentLatency { get; private set; }
+    public AccountAuthentication? AccountAuthentication { get; private set; }
     
-    /// <summary>
-    /// Estado da autenticação do player
-    /// </summary>
-    public bool IsAuthenticated => Account != null;
-    
-    /// <summary>
-    /// Estado de seleção de personagem
-    /// </summary>
-    public bool HasSelectedCharacter => SelectedCharacter != null;
+    private Character? _selectedCharacter;
+    private long SelectedCharacterId => _selectedCharacter?.Id ?? -1;
 
     // Construtor para ORM
     protected Player() { }
@@ -69,40 +70,57 @@ public class Player : Entity
     }
 
     /// <summary>
-    /// Autentica o jogador associando uma conta
+    /// Autentica o jogador com um nome de usuário e verifica o estado da conta
     /// </summary>
-    /// <param name="account">Conta autenticada</param>
-    /// <returns>Se a autenticação foi bem-sucedida</returns>
-    public bool Authenticate(Account account)
+    /// <param name="authentication">Autenticação do serviço de contas</param>
+    public bool Authenticate(AccountAuthentication authentication)
     {
-        if (account == null)
-            throw new ArgumentNullException(nameof(account));
-            
         // Verifica se a conta está em um estado válido para autenticação
-        if (account.State == Enum.AccountState.Banned || 
-            account.State == Enum.AccountState.Deleted ||
-            account.State == Enum.AccountState.Locked || 
-            account.State == Enum.AccountState.Suspended)
+        if (authentication.AccountState == AccountState.Banned || 
+            authentication.AccountState == AccountState.Deleted ||
+            authentication.AccountState == AccountState.Locked || 
+            authentication.AccountState == AccountState.Suspended)
         {
             AddDomainEvent(new PlayerAccountLoginFailedEvent(
                 ConnectionId, 
-                account.Username, 
-                $"Conta em estado inválido: {account.State}")
+                authentication.Username, 
+                $"Conta em estado inválido: {authentication.AccountState}")
             );
             return false;
         }
 
-        Account = account;
+        AccountAuthentication = authentication;
+
         UpdateActivity();
         
-        AddDomainEvent(new PlayerAccountLoginSuccessEvent(ConnectionId, account.Username));
+        AddDomainEvent(new PlayerAccountLoginSuccessEvent(ConnectionId, Username));
         return true;
+    }
+
+    /// <summary>
+    /// Realiza o logout do jogador, removendo o personagem selecionado
+    /// </summary>
+    public void Logout()
+    {
+        if (!HasSelectedCharacter)
+            return;
+
+        Character previousCharacter = _selectedCharacter!;
+        _selectedCharacter = null;
+        
+        // Emitir evento de logout do personagem
+        AddDomainEvent(new PlayerCharacterLeftWorldEvent(
+            ConnectionId,
+            previousCharacter.Id,
+            previousCharacter.Name,
+            "Logout do personagem"
+        ));
     }
 
     /// <summary>
     /// Seleciona um personagem para jogar
     /// </summary>
-    /// <param name="character">Personagem a ser selecionado</param>
+    /// <param name="character">personagem a ser selecionado</param>
     /// <returns>Se a seleção foi bem-sucedida</returns>
     public bool SelectCharacter(Character character)
     {
@@ -110,33 +128,22 @@ public class Player : Entity
         {
             AddDomainEvent(new PlayerCharacterSelectFailedEvent(
                 ConnectionId,
-                character?.Id ?? 0,
+                character.Id,
                 "Não autenticado",
                 "Jogador precisa estar autenticado para selecionar um personagem"
             ));
             return false;
         }
-        
-        // Verificar se o personagem pertence à conta
-        if (Account!.GetCharacterById(character.Id) == null)
-        {
-            AddDomainEvent(new PlayerCharacterSelectFailedEvent(
-                ConnectionId,
-                character.Id,
-                Account.Username,
-                "Personagem não pertence a esta conta"
-            ));
-            return false;
-        }
 
-        SelectedCharacter = character;
+        _selectedCharacter = character;
+
         UpdateActivity();
         
         AddDomainEvent(new PlayerCharacterSelectSuccessEvent(
             ConnectionId,
             character.Id,
             character.Name,
-            Account.Username
+            Username
         ));
         
         // Evento para informar que um personagem entrou no mundo
@@ -157,9 +164,9 @@ public class Player : Entity
     /// </summary>
     public void UnselectCharacter()
     {
-        if (SelectedCharacter != null)
+        if (HasSelectedCharacter)
         {
-            Character previousCharacter = SelectedCharacter;
+            Character previousCharacter = _selectedCharacter!;
             
             // Evento de saída do mundo
             AddDomainEvent(new PlayerCharacterLeftWorldEvent(
@@ -169,7 +176,7 @@ public class Player : Entity
                 "Desseleção de personagem"
             ));
             
-            SelectedCharacter = null;
+            _selectedCharacter = null;
             UpdateActivity();
         }
     }
@@ -181,12 +188,12 @@ public class Player : Entity
     public void Disconnect(string reason = "Desconexão normal")
     {
         // Se estava com personagem selecionado, emitir evento de saída do mundo
-        if (SelectedCharacter != null)
+        if (HasSelectedCharacter)
         {
             AddDomainEvent(new PlayerCharacterLeftWorldEvent(
                 ConnectionId,
-                SelectedCharacter.Id,
-                SelectedCharacter.Name,
+                SelectedCharacterId,
+                _selectedCharacter!.Name,
                 reason
             ));
         }
@@ -196,20 +203,60 @@ public class Player : Entity
     }
 
     /// <summary>
-    /// Atualiza a latência do jogador
-    /// </summary>
-    /// <param name="latencyMs">Latência em milissegundos</param>
-    public void UpdateLatency(int latencyMs)
-    {
-        CurrentLatency = latencyMs;
-        UpdateActivity();
-    }
-
-    /// <summary>
     /// Atualiza o timestamp da última atividade
     /// </summary>
     public void UpdateActivity()
     {
         LastActivity = DateTime.UtcNow;
+    }
+    
+    /// <summary>
+    /// Envia uma mensagem de chat
+    /// </summary>
+    /// <param name="message">Conteúdo da mensagem</param>
+    /// <param name="type">Tipo de chat</param>
+    /// <param name="recipientName">Nome do destinatário (para sussuros)</param>
+    /// <returns>Se a mensagem foi enviada com sucesso</returns>
+    public bool SendChatMessage(string message)
+    {
+        if (!IsAuthenticated || !HasSelectedCharacter)
+            return false;
+
+        AddDomainEvent(new PlayerChatEvent(
+            ConnectionId,
+            Username,
+            HasSelectedCharacter ? _selectedCharacter!.Name : string.Empty,
+            message
+        ));
+        
+        UpdateActivity();
+        return true;
+    }
+
+    /// <summary>
+    /// Cria um personagem para este jogador
+    /// </summary>
+    /// <param name="characterName">Nome do personagem</param>
+    /// <returns>Evento indicando sucesso ou falha na criação</returns>
+    public void CreateCharacter(string characterName) 
+    {
+        if (!IsAuthenticated)
+        {
+            AddDomainEvent(new PlayerCharacterCreationFailedEvent(
+                ConnectionId,
+                "",  // Username vazio, pois não está autenticado
+                characterName,
+                "Jogador não autenticado"
+            ));
+            return;
+        }
+        
+        AddDomainEvent(new PlayerCharacterCreationSuccessEvent(
+            ConnectionId, 
+            Username, 
+            characterName
+        ));
+        
+        UpdateActivity();
     }
 }

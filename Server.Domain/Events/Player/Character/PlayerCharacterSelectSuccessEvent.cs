@@ -1,4 +1,4 @@
-namespace Server.Domain.Events.Player;
+namespace Server.Domain.Events.Player.Character;
 
 /// <summary>
 /// Evento disparado quando a seleção de personagem é bem-sucedida
