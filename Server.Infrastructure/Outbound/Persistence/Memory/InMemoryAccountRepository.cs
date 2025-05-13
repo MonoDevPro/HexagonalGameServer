@@ -3,7 +3,7 @@ using Server.Domain.Entities;
 
 namespace Server.Infrastructure.Outbound.Persistence.Memory;
 
-public class InMemoryAccountRepository : IAccountRepository
+public class InMemoryAccountRepository : IAccountRepositoryPort
 {
     private readonly Dictionary<long, Account> _accounts = new();
     private readonly Dictionary<string, Account> _accountsByUsername = new(StringComparer.OrdinalIgnoreCase);

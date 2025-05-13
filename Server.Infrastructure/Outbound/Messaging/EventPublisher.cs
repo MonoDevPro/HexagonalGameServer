@@ -4,7 +4,7 @@ using Server.Domain.Events;
 
 namespace Server.Infrastructure.Outbound.Messaging;
 
-public class GameEventPublisher : IGameEventPublisher
+public class EventPublisher : IEventPublisherPort
 {
     private readonly ConcurrentDictionary<Type, List<Delegate>> _handlers = new();
     

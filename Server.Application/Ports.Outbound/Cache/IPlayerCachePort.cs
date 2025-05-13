@@ -1,7 +1,8 @@
 // filepath: /home/filipe/Desenvolvimento/NOVOSERVER/HexagonalGameServer/Server.Application/Ports.Outbound/IPlayerCachePort.cs
+
 using Server.Domain.Entities;
 
-namespace Server.Application.Ports.Outbound;
+namespace Server.Application.Ports.Outbound.Cache;
 
 /// <summary>
 /// Interface para o cache de jogadores (port outbound)

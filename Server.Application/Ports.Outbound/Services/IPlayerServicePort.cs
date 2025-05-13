@@ -1,6 +1,6 @@
-namespace Server.Application.Ports.Outbound;
+namespace Server.Application.Ports.Outbound.Services;
 
-public interface IPlayerService
+public interface IPlayerServicePort
 {
     /// <summary>
     /// Creates a new player for the given connection ID

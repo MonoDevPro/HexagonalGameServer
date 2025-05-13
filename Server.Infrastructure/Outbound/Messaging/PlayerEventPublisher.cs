@@ -5,9 +5,11 @@ using NetworkCommon.Packets.Client.Account;
 using NetworkCommon.Packets.Client.Character;
 using NetworkHexagonal.Core.Application.Ports.Outbound;
 using Server.Application.Ports.Outbound;
-using Server.Application.Ports.Outbound.Mapping;
+using Server.Application.Ports.Outbound.Cache;
 using Server.Application.Ports.Outbound.Messaging;
+using Server.Application.Ports.Outbound.Networking;
 using Server.Application.Ports.Outbound.Persistence;
+using Server.Application.Ports.Outbound.Services;
 using Server.Domain.Events.Player;
 using Server.Domain.Events.Player.Account;
 using Server.Domain.Events.Player.Character;
@@ -18,20 +20,20 @@ namespace Server.Infrastructure.Outbound.Messaging;
 /// <summary>
 /// Implementation of the IPlayerEventPublisher interface for sending player events to network clients
 /// </summary>
-public class PlayerEventPublisher : IPlayerEventPublisher<PlayerEvent>
+public class PlayerEventPublisher : IPlayerEventPublisherPort<PlayerEvent>
 {
     private readonly IPacketSender _packetSender;
     private readonly IPlayerCachePort _playerCachePort;
-    private readonly IAccountService _accountService;
-    private readonly IGameEventPublisher _gameEventPublisher;
-    private readonly IDtoMapper _dtoMapper;
+    private readonly IAccountServicePort _accountService;
+    private readonly IEventPublisherPort _gameEventPublisher;
+    private readonly INetworkDtoMapperPort _dtoMapper;
     
     public PlayerEventPublisher(
         IPacketSender packetSender, 
         IPlayerCachePort playerCachePort,
-        IAccountService accountService,
-        IGameEventPublisher gameEventPublisher,
-        IDtoMapper dtoMapper)
+        IAccountServicePort accountService,
+        IEventPublisherPort gameEventPublisher,
+        INetworkDtoMapperPort dtoMapper)
     {
         _packetSender = packetSender;
         _playerCachePort = playerCachePort;

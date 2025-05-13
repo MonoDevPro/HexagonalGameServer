@@ -6,7 +6,7 @@ using NetworkHexagonal.Core.Domain.Models;
 using Server.Application.Commands;
 using Server.Application.Ports.Inbound;
 
-namespace Server.Infrastructure.Inbound;
+namespace Server.Infrastructure.Inbound.Network;
 
 public class NetworkPlayerHandlerAdapter
 {
@@ -56,48 +56,48 @@ public class NetworkPlayerHandlerAdapter
     // Handlers para pacotes de rede vindos do NetworkCommon
     public void Handle(RequestAccountCreating packet, PacketContext packetContext)
     {
-        var command = new AccountCreateCommand(packetContext.PeerId, packet.AccountName, packet.Password);
+        var command = new PlayerAccountCreateCommand(packetContext.PeerId, packet.AccountName, packet.Password);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestAccountLogging packet, PacketContext packetContext)
     {
-        var command = new AccountLoginCommand(packetContext.PeerId, packet.AccountName, packet.Password);
+        var command = new PlayerAccountLoginCommand(packetContext.PeerId, packet.AccountName, packet.Password);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestAccountLogout packet, PacketContext packetContext)
     {
         // Supondo que o username esteja em contexto/session, adapte conforme necessário
-        var command = new AccountLogoutCommand(packetContext.PeerId);
+        var command = new PlayerAccountLogoutCommand(packetContext.PeerId);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestCharacterCreating packet, PacketContext packetContext)
     {
         // Supondo que o username venha de contexto/session, adapte conforme necessário
-        var command = new CharacterCreateCommand(packetContext.PeerId, packet.CharacterName);
+        var command = new PlayerCharacterCreateCommand(packetContext.PeerId, packet.CharacterName);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestCharacterLogout packet, PacketContext packetContext)
     {
         // Supondo que o username venha de contexto/session, adapte conforme necessário
-        var command = new CharacterLogoutCommand(packetContext.PeerId);
+        var command = new PlayerCharacterLogoutCommand(packetContext.PeerId);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestCharacterSelection packet, PacketContext packetContext)
     {
         // Supondo que o username venha de contexto/session, adapte conforme necessário
-        var command = new CharacterSelectCommand(packetContext.PeerId, packet.CharacterId);
+        var command = new PlayerCharacterSelectCommand(packetContext.PeerId, packet.CharacterId);
         _playerCommandHandler.Handle(command);
     }
 
     public void Handle(RequestCharacterMessaging packet, PacketContext packetContext)
     {
         // Supondo que o username venha de contexto/session, adapte conforme necessário
-        var command = new CharacterChatCommand(packetContext.PeerId, packet.Message);
+        var command = new PlayerCharacterChatCommand(packetContext.PeerId, packet.Message);
         _playerCommandHandler.Handle(command);
     }
 

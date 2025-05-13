@@ -1,28 +1,27 @@
-using Server.Domain.Entities;
+using Server.Application.Ports.Outbound.Messaging;
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Application.Ports.Outbound.Security;
-using Server.Domain.ValueObjects;
-using Server.Application.Ports.Outbound;
-using Server.Application.Ports.Outbound.Messaging;
+using Server.Application.Ports.Outbound.Services;
+using Server.Domain.Entities;
 using Server.Domain.Enums;
 using Server.Domain.Policies;
 using Server.Domain.ValueObjects.Account;
 
-namespace Server.Application.Services;
+namespace Server.Infrastructure.Outbound.Services;
 
-public class AccountService : IAccountService
+public class AccountService : IAccountServicePort
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly ICharacterRepository _characterRepository;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IGameEventPublisher _eventPublisher;
+    private readonly IAccountRepositoryPort _accountRepository;
+    private readonly ICharacterRepositoryPort _characterRepository;
+    private readonly IPasswordHasherPort _passwordHasher;
+    private readonly IEventPublisherPort _eventPublisher;
 
     // Os repositórios aqui injetados são de cenário real, de persistencia em banco de dados.
     public AccountService(
-        IAccountRepository accountRepository, 
-        ICharacterRepository characterRepository,
-        IPasswordHasher passwordHasher, 
-        IGameEventPublisher eventPublisher)
+        IAccountRepositoryPort accountRepository, 
+        ICharacterRepositoryPort characterRepository,
+        IPasswordHasherPort passwordHasher, 
+        IEventPublisherPort eventPublisher)
     {
         _accountRepository = accountRepository;
         _characterRepository = characterRepository;

@@ -2,7 +2,7 @@ using Server.Domain.Entities;
 
 namespace Server.Application.Ports.Outbound.Persistence;
 
-public interface IAccountRepository
+public interface IAccountRepositoryPort
 {
     Task<Account?> GetByIdAsync(long id);
     Task<Account?> GetByUsernameAsync(string username);

@@ -3,7 +3,7 @@ using Server.Domain.Entities;
 
 namespace Server.Infrastructure.Outbound.Persistence.Memory;
 
-public class InMemoryCharacterRepository : ICharacterRepository
+public class InMemoryCharacterRepository : ICharacterRepositoryPort
 {
     private readonly Dictionary<long, Character> _characters = new();
     private readonly Dictionary<string, Character> _charactersByName = new(StringComparer.OrdinalIgnoreCase);

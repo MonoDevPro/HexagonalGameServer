@@ -4,7 +4,7 @@ using Server.Application.Ports.Outbound.Security;
 
 namespace Server.Infrastructure.Outbound.Security;
 
-public class PasswordHasher : IPasswordHasher
+public class PasswordHasher : IPasswordHasherPort
 {
     private const int SaltSize = 16; // 128 bits
     private const int KeySize = 32; // 256 bits

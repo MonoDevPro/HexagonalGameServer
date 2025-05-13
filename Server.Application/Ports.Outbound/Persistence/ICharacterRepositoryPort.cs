@@ -2,7 +2,7 @@ using Server.Domain.Entities;
 
 namespace Server.Application.Ports.Outbound.Persistence;
 
-public interface ICharacterRepository
+public interface ICharacterRepositoryPort
 {
     Task<Character?> GetByIdAsync(long id);
     Task<Character?> GetByNameAsync(string name);

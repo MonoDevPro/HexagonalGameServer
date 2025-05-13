@@ -4,18 +4,18 @@ using NetworkHexagonal.Core.Application.Ports.Outbound;
 using NetworkHexagonal.Infrastructure.DependencyInjection;
 using Server.Application.Handlers;
 using Server.Application.Ports.Inbound;
-using Server.Application.Ports.Outbound;
-using Server.Application.Ports.Outbound.Mapping;
+using Server.Application.Ports.Outbound.Cache;
 using Server.Application.Ports.Outbound.Messaging;
+using Server.Application.Ports.Outbound.Networking;
 using Server.Application.Ports.Outbound.Persistence;
 using Server.Application.Ports.Outbound.Security;
-using Server.Application.Services;
+using Server.Application.Ports.Outbound.Services;
 using Server.Domain.Events.Player;
-using Server.Infrastructure.Outbound;
-using Server.Infrastructure.Outbound.Mapping;
 using Server.Infrastructure.Outbound.Messaging;
+using Server.Infrastructure.Outbound.Networking;
 using Server.Infrastructure.Outbound.Persistence.Memory;
 using Server.Infrastructure.Outbound.Security;
+using Server.Infrastructure.Outbound.Services;
 
 namespace Server.Infrastructure.Configuration;
 
@@ -30,7 +30,7 @@ public static class ServerServicesExtension
     /// <param name="services">Collection de serviços</param>
     /// <param name="configuration">Configuração da aplicação</param>
     /// <returns>Collection de serviços com os adaptadores de infraestrutura registrados</returns>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddServerInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services
             .AddRepositories(configuration)
@@ -43,20 +43,18 @@ public static class ServerServicesExtension
         return services;
     }
 
-    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddServerApplication(this IServiceCollection services, IConfiguration configuration)
     {
         // Register persistence services
-        services.AddSingleton<IAccountService, AccountService>();
-        services.AddSingleton<ICharacterService, CharacterService>();
-        services.AddSingleton<IPlayerService, PlayerService>();
+        services.AddSingleton<IAccountServicePort, AccountService>();
+        services.AddSingleton<ICharacterServicePort, CharacterService>();
+        services.AddSingleton<IPlayerServicePort, PlayerService>();
         // Register command handlers
         services.AddSingleton<IPlayerCommandHandler, PlayerCommandHandler>();
-        // Register monitoring services
-        services.AddSingleton<IServerMonitoringPort, ServerMonitoringService>();
         return services;
     }
 
-    public static IServiceCollection AddCache(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddCache(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<IPlayerCachePort, InMemoryPlayerCache>();
         return services;
@@ -68,14 +66,14 @@ public static class ServerServicesExtension
     /// <param name="services">Collection de serviços</param>
     /// <param name="configuration">Configuração da aplicação</param>
     /// <returns>Collection de serviços com os repositórios registrados</returns>
-    public static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration configuration)
     {
         // Para ambiente de produção, use repositórios com banco de dados
         // Para ambiente de desenvolvimento/testes, use repositórios em memória
         
         // Por padrão, usamos repositórios em memória
-        services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
-        services.AddSingleton<ICharacterRepository, InMemoryCharacterRepository>();
+        services.AddSingleton<IAccountRepositoryPort, InMemoryAccountRepository>();
+        services.AddSingleton<ICharacterRepositoryPort, InMemoryCharacterRepository>();
         
         return services;
     }
@@ -85,9 +83,9 @@ public static class ServerServicesExtension
     /// </summary>
     /// <param name="services">Collection de serviços</param>
     /// <returns>Collection de serviços com os serviços de segurança registrados</returns>
-    public static IServiceCollection AddSecurity(this IServiceCollection services)
+    private static IServiceCollection AddSecurity(this IServiceCollection services)
     {
-        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IPasswordHasherPort, PasswordHasher>();
         
         return services;
     }
@@ -97,10 +95,10 @@ public static class ServerServicesExtension
     /// </summary>
     /// <param name="services">Collection de serviços</param>
     /// <returns>Collection de serviços com os serviços de mensageria registrados</returns>
-    public static IServiceCollection AddMessaging(this IServiceCollection services)
+    private static IServiceCollection AddMessaging(this IServiceCollection services)
     {
-        services.AddSingleton<IGameEventPublisher, GameEventPublisher>();
-        services.AddSingleton<IPlayerEventPublisher<PlayerEvent>, PlayerEventPublisher>();
+        services.AddSingleton<IEventPublisherPort, EventPublisher>();
+        services.AddSingleton<IPlayerEventPublisherPort<PlayerEvent>, PlayerEventPublisher>();
         
         return services;
     }
@@ -110,9 +108,9 @@ public static class ServerServicesExtension
     /// </summary>
     /// <param name="services">Collection de serviços</param>
     /// <returns>Collection de serviços com os serviços de mapeamento registrados</returns>
-    public static IServiceCollection AddMapping(this IServiceCollection services)
+    private static IServiceCollection AddMapping(this IServiceCollection services)
     {
-        services.AddSingleton<IDtoMapper, DtoMapper>();
+        services.AddSingleton<INetworkDtoMapperPort, NetworkDtoMapper>();
         
         return services;
     }
@@ -120,7 +118,7 @@ public static class ServerServicesExtension
     /// <summary>
     /// Adiciona os serviços de rede ao container de DI
     /// </summary>
-    public static IServiceCollection AddServerNetworking(this IServiceCollection services, IConfiguration config)
+    private static IServiceCollection AddServerNetworking(this IServiceCollection services, IConfiguration config)
     {
         var networkConfig = config.GetSection("Network");
 

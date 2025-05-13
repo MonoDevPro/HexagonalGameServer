@@ -1,4 +1,5 @@
-using Server.Domain.Enum;
+using Server.Domain.Enums;
+using Server.Domain.Policies;
 using Server.Domain.ValueObjects;
 using Xunit;
 

@@ -2,14 +2,13 @@ using NetworkCommon.DTOs;
 using NetworkCommon.DTOs.Primitives;
 using Server.Domain.Entities;
 using Server.Domain.Entities.Primitives;
-using Server.Domain.ValueObjects;
 
-namespace Server.Application.Ports.Outbound.Mapping;
+namespace Server.Application.Ports.Outbound.Networking;
 
 /// <summary>
 /// Porta para mapeamento entre entidades de domínio e DTOs
 /// </summary>
-public interface IDtoMapper
+public interface INetworkDtoMapperPort
 {
     /// <summary>
     /// Mapeia um personagem para seu DTO correspondente

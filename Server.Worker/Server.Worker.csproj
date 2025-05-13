@@ -13,5 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../Server.Infrastructure/Server.Infrastructure.csproj" />
+    <ProjectReference Include="..\Server.AdminMetrics.API\Server.AdminMetrics.API.csproj" />
   </ItemGroup>
 </Project>

@@ -1,18 +1,16 @@
 // filepath: /home/filipe/Desenvolvimento/NOVOSERVER/HexagonalGameServer/Server.Application/Ports.Outbound/IAccountService.cs
 
-using Server.Application.Services;
 using Server.Domain.Entities;
 using Server.Domain.Enums;
 using Server.Domain.Policies;
-using Server.Domain.ValueObjects;
 using Server.Domain.ValueObjects.Account;
 
-namespace Server.Application.Ports.Outbound;
+namespace Server.Application.Ports.Outbound.Services;
 
 /// <summary>
 /// Interface para o serviço de conta (port outbound) 
 /// </summary>
-public interface IAccountService
+public interface IAccountServicePort
 {
     Task<bool> CreateAccountAsync(AccountCreationOptions options);
     Task<AccountAuthentication?> AuthenticateAsync(string username, string password);

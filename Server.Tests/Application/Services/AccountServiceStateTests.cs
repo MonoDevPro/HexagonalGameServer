@@ -1,32 +1,31 @@
-using System;
-using System.Threading.Tasks;
 using Moq;
+using Server.Application.Ports.Outbound.Messaging;
+using Server.Application.Ports.Outbound.Persistence;
 using Server.Application.Ports.Outbound.Security;
 using Server.Application.Services;
 using Server.Domain.Entities;
 using Server.Domain.Enums;
 using Server.Domain.Events;
-using Server.Domain.Repositories;
-using Server.Domain.Services;
+using Server.Domain.ValueObjects.Account;
 using Xunit;
 
 namespace Server.Tests.Application.Services;
 
 public class AccountServiceStateTests
 {
-    private readonly Mock<IAccountRepository> _mockAccountRepository;
-    private readonly Mock<ICharacterRepository> _mockCharacterRepository;
-    private readonly Mock<IPasswordHasher> _mockPasswordHasher;
-    private readonly Mock<IGameEventPublisher> _mockEventPublisher;
+    private readonly Mock<IAccountRepositoryPort> _mockAccountRepository;
+    private readonly Mock<ICharacterRepositoryPort> _mockCharacterRepository;
+    private readonly Mock<IPasswordHasherPort> _mockPasswordHasher;
+    private readonly Mock<IEventPublisherPort> _mockEventPublisher;
     private readonly AccountService _accountService;
     private readonly Account _account;
     
     public AccountServiceStateTests()
     {
-        _mockAccountRepository = new Mock<IAccountRepository>();
-        _mockCharacterRepository = new Mock<ICharacterRepository>();
-        _mockPasswordHasher = new Mock<IPasswordHasher>();
-        _mockEventPublisher = new Mock<IGameEventPublisher>();
+        _mockAccountRepository = new Mock<IAccountRepositoryPort>();
+        _mockCharacterRepository = new Mock<ICharacterRepositoryPort>();
+        _mockPasswordHasher = new Mock<IPasswordHasherPort>();
+        _mockEventPublisher = new Mock<IEventPublisherPort>();
         
         _accountService = new AccountService(
             _mockAccountRepository.Object,
@@ -38,8 +37,15 @@ public class AccountServiceStateTests
         // Configure o mock do password hasher
         _mockPasswordHasher.Setup(x => x.HashPassword(It.IsAny<string>())).Returns("hashedpassword");
         
+        var accountCreationOptions = new AccountCreationOptions
+        {
+            Username = "testuser",
+            Password = "password123",
+            InitialState = AccountState.Created
+        };
+
         // Crie uma conta para testes
-        _account = new Account("testuser", "password123", _mockPasswordHasher.Object);
+        _account = new Account(accountCreationOptions);
         
         // Configure o mock do repositório para retornar a conta de teste
         _mockAccountRepository.Setup(x => x.GetByUsernameAsync("testuser"))
@@ -49,8 +55,12 @@ public class AccountServiceStateTests
     [Fact]
     public async Task ActivateAccountAsync_ValidAccount_ReturnsTrue()
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act
-        bool result = await _accountService.ActivateAccountAsync("testuser");
+        bool result = await _accountService.ActivateAccountAsync(authentication);
         
         // Assert
         Assert.True(result);
@@ -69,8 +79,12 @@ public class AccountServiceStateTests
     [Fact]
     public async Task LockAccountAsync_ValidAccount_ReturnsTrue()
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act
-        bool result = await _accountService.LockAccountAsync("testuser");
+        bool result = await _accountService.LockAccountAsync(authentication);
         
         // Assert
         Assert.True(result);
@@ -92,9 +106,13 @@ public class AccountServiceStateTests
         // Arrange
         var duration = TimeSpan.FromDays(3);
         var reason = "Violação de regras";
+
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
         
         // Act
-        bool result = await _accountService.SuspendAccountAsync("testuser", duration, reason);
+        bool result = await _accountService.SuspendAccountAsync(authentication, duration, reason);
         
         // Assert
         Assert.True(result);
@@ -115,9 +133,13 @@ public class AccountServiceStateTests
     {
         // Arrange
         var reason = "Violação grave de regras";
+
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
         
         // Act
-        bool result = await _accountService.BanAccountAsync("testuser", reason);
+        bool result = await _accountService.BanAccountAsync(authentication, reason);
         
         // Assert
         Assert.True(result);
@@ -136,8 +158,12 @@ public class AccountServiceStateTests
     [Fact]
     public async Task DeleteAccountAsync_ValidAccount_ReturnsTrue()
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act
-        bool result = await _accountService.DeleteAccountAsync("testuser");
+        bool result = await _accountService.DeleteAccountAsync(authentication);
         
         // Assert
         Assert.True(result);
@@ -156,8 +182,12 @@ public class AccountServiceStateTests
     [Fact]
     public async Task GetPossibleStateTransitionsAsync_ReturnsCorrectStates()
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act
-        var possibleTransitions = await _accountService.GetPossibleStateTransitionsAsync("testuser");
+        var possibleTransitions = await _accountService.GetPossibleStateTransitionsAsync(authentication);
         
         // Assert
         Assert.NotNull(possibleTransitions);
@@ -174,9 +204,13 @@ public class AccountServiceStateTests
     {
         // Arrange
         _account.Activate();
+
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
         
         // Act
-        var state = await _accountService.GetAccountStateAsync("testuser");
+        var state = await _accountService.GetAccountStateAsync(authentication);
         
         // Assert
         Assert.Equal(AccountState.Activated, state);
@@ -187,9 +221,13 @@ public class AccountServiceStateTests
     {
         // Arrange
         _account.Delete();
+
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
         
         // Act
-        bool result = await _accountService.ActivateAccountAsync("testuser");
+        bool result = await _accountService.ActivateAccountAsync(authentication);
         
         // Assert
         Assert.False(result);
@@ -202,10 +240,14 @@ public class AccountServiceStateTests
         // Arrange
         _mockAccountRepository.Setup(x => x.GetByUsernameAsync("nonexistentuser"))
             .ReturnsAsync((Account)null!);
+
+        var authentication = await _accountService.AuthenticateAsync("nonexistentuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
             
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _accountService.ActivateAccountAsync("nonexistentuser")
+            async () => await _accountService.ActivateAccountAsync(authentication)
         );
     }
     
@@ -214,9 +256,13 @@ public class AccountServiceStateTests
     [InlineData(null)]
     public async Task BanAccountAsync_EmptyReason_ThrowsException(string reason)
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _accountService.BanAccountAsync("testuser", reason)
+            async () => await _accountService.BanAccountAsync(authentication, reason)
         );
     }
     
@@ -225,9 +271,13 @@ public class AccountServiceStateTests
     [InlineData(null)]
     public async Task SuspendAccountAsync_EmptyReason_ThrowsException(string reason)
     {
+        var authentication = await _accountService.AuthenticateAsync("testuser", "password123");
+        Assert.NotNull(authentication);
+        Assert.True(authentication.CheckValidation());
+
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _accountService.SuspendAccountAsync("testuser", TimeSpan.FromDays(1), reason)
+            async () => await _accountService.SuspendAccountAsync(authentication, TimeSpan.FromDays(1), reason)
         );
     }
 }

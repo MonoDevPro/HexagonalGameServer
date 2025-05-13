@@ -1,24 +1,21 @@
-using Server.Application.Ports.Outbound;
 using Server.Application.Ports.Outbound.Messaging;
 using Server.Application.Ports.Outbound.Persistence;
+using Server.Application.Ports.Outbound.Services;
 using Server.Domain.Entities;
-using Server.Domain.Entities.Primitives;
-using Server.Domain.Enums;
 using Server.Domain.Policies;
-using Server.Domain.ValueObjects;
 using Server.Domain.ValueObjects.Character;
 
-namespace Server.Application.Services;
+namespace Server.Infrastructure.Outbound.Services;
 
-public class CharacterService : ICharacterService
+public class CharacterService : ICharacterServicePort
 {
-    private readonly ICharacterRepository _characterRepository;
-    private readonly IGameEventPublisher _eventPublisher;
+    private readonly ICharacterRepositoryPort _characterRepository;
+    private readonly IEventPublisherPort _eventPublisher;
 
     // Os repositórios aqui injetados são de cenário real, de persistencia em banco de dados.
     public CharacterService(
-        ICharacterRepository characterRepository,
-        IGameEventPublisher eventPublisher)
+        ICharacterRepositoryPort characterRepository,
+        IEventPublisherPort eventPublisher)
     {
         _characterRepository = characterRepository;
         _eventPublisher = eventPublisher;

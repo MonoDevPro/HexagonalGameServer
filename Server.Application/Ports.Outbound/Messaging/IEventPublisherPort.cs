@@ -2,7 +2,7 @@ using Server.Domain.Events;
 
 namespace Server.Application.Ports.Outbound.Messaging;
 
-public interface IGameEventPublisher
+public interface IEventPublisherPort
 {
     /// <summary>
     /// Publica um evento de domínio para consumo por sistemas externos.

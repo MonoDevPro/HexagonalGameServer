@@ -12,8 +12,6 @@
 
     <ItemGroup>
       <Folder Include="Ports.Inbound\" />
-      <Folder Include="Ports.Outbound/Networking/" />
-      <Folder Include="Ports.Outbound/Http/" />
     </ItemGroup>
 
     <ItemGroup>

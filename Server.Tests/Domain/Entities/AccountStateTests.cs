@@ -1,26 +1,31 @@
-using System;
 using Server.Domain.Entities;
-using Server.Domain.Enum;
-using Server.Domain.Events;
-using Server.Domain.Services;
 using Moq;
 using Server.Domain.Events.Account;
 using Xunit;
 using Server.Application.Ports.Outbound.Security;
+using Server.Domain.Enums;
+using Server.Domain.ValueObjects.Account;
 
 namespace Server.Tests.Domain.Entities;
 
 public class AccountStateTests
 {
-    private readonly Mock<IPasswordHasher> _mockPasswordHasher;
+    private readonly Mock<IPasswordHasherPort> _mockPasswordHasher;
     private readonly Account _account;
     
     public AccountStateTests()
     {
-        _mockPasswordHasher = new Mock<IPasswordHasher>();
+        _mockPasswordHasher = new Mock<IPasswordHasherPort>();
         _mockPasswordHasher.Setup(x => x.HashPassword(It.IsAny<string>())).Returns("hashedpassword");
         
-        _account = new Account("testuser", "password123");
+        var accountCreationOptions = new AccountCreationOptions
+        {
+            Username = "testuser",
+            Password = "password123",
+            InitialState = AccountState.Created,
+        };
+
+        _account = new Account(accountCreationOptions);
     }
     
     [Fact]
@@ -162,7 +167,7 @@ public class AccountStateTests
         _mockPasswordHasher.Setup(x => x.VerifyHashedPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         
         // Act
-        bool result = _account.Authenticate("password123", _mockPasswordHasher.Object);
+        var result = _account.Authenticate("password123");
         
         // Assert
         Assert.False(result);
@@ -176,7 +181,7 @@ public class AccountStateTests
         _mockPasswordHasher.Setup(x => x.VerifyHashedPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         
         // Act
-        bool result = _account.Authenticate("password123", _mockPasswordHasher.Object);
+        var result = _account.Authenticate("password123");
         
         // Assert
         Assert.False(result);
@@ -190,7 +195,7 @@ public class AccountStateTests
         _mockPasswordHasher.Setup(x => x.VerifyHashedPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         
         // Act
-        bool result = _account.Authenticate("password123", _mockPasswordHasher.Object);
+        var result = _account.Authenticate("password123");
         
         // Assert
         Assert.False(result);
@@ -204,7 +209,7 @@ public class AccountStateTests
         _mockPasswordHasher.Setup(x => x.VerifyHashedPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         
         // Act
-        bool result = _account.Authenticate("password123", _mockPasswordHasher.Object);
+        var result = _account.Authenticate("password123");
         
         // Assert
         Assert.False(result);
@@ -218,7 +223,7 @@ public class AccountStateTests
         _mockPasswordHasher.Setup(x => x.VerifyHashedPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         
         // Act
-        bool result = _account.Authenticate("password123", _mockPasswordHasher.Object);
+        var result = _account.Authenticate("password123");
         
         // Assert
         Assert.True(result);

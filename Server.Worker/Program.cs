@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Builder;
+using Server.AdminMetrics.API.Infrastructure.Configuration;
+using Server.AdminMetrics.API.Infrastructure.Inbound.Extensions;
 using Server.Infrastructure.Configuration;
 using Server.Worker.Extensions;
-using Server.Infrastructure.Inbound.Http.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,8 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLogging(configure => configure.AddConsole());
 
 // Camadas da arquitetura hexagonal
-builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddServerApplication(builder.Configuration);
+builder.Services.AddServerInfrastructure(builder.Configuration);
+builder.Services.AddServerHttpServices();
 
 // Configuração específica do Worker
 builder.Services.AddWorkerServices(builder.Configuration);

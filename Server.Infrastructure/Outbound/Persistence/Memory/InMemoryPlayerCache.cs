@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Cache;
 using Server.Domain.Entities;
 
 namespace Server.Infrastructure.Outbound.Persistence.Memory;

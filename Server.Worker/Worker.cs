@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using NetworkHexagonal.Core.Application.Ports.Inbound;
 using NetworkHexagonal.Core.Domain.Events.Network;
-using Server.Infrastructure.Inbound;
+using Server.Infrastructure.Inbound.Network;
 using Server.Worker.Extensions;
 using System.Diagnostics;
 

@@ -8,7 +8,7 @@ namespace Server.Application.Ports.Outbound.Messaging;
 /// <summary>
 /// Interface for publishing player-related events to external systems
 /// </summary>
-public interface IPlayerEventPublisher<TEvent>
+public interface IPlayerEventPublisherPort<TEvent>
     where TEvent : PlayerEvent
 {
     // ConnectionEvents

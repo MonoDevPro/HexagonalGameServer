@@ -1,31 +1,32 @@
 using Microsoft.Extensions.Logging;
 using Server.Application.Factories;
-using Server.Application.Ports.Outbound;
+using Server.Application.Ports.Outbound.Cache;
 using Server.Application.Ports.Outbound.Messaging;
+using Server.Application.Ports.Outbound.Services;
 using Server.Domain.Entities;
 using Server.Domain.Events.Player.Account;
 using Server.Domain.Events.Player.Character;
 using Server.Domain.Events.Player.Connection;
 
-namespace Server.Application.Services;
+namespace Server.Infrastructure.Outbound.Services;
 
 /// <summary>
 /// Service responsible for managing active players and their game states
 /// </summary>
-public class PlayerService : IPlayerService
+public class PlayerService : IPlayerServicePort
 {
     private readonly ILogger<PlayerService> _logger;
-    private readonly IAccountService _accountService;
-    private readonly ICharacterService _characterService;
+    private readonly IAccountServicePort _accountService;
+    private readonly ICharacterServicePort _characterService;
     private readonly IPlayerCachePort _playerCache;
-    private readonly IGameEventPublisher _eventPublisher;
+    private readonly IEventPublisherPort _eventPublisher;
 
     public PlayerService(
         ILogger<PlayerService> logger,
-        IAccountService accountService,
-        ICharacterService characterService,
+        IAccountServicePort accountService,
+        ICharacterServicePort characterService,
         IPlayerCachePort playerCache,
-        IGameEventPublisher eventPublisher)
+        IEventPublisherPort eventPublisher)
     {
         _logger = logger;
         _accountService = accountService;

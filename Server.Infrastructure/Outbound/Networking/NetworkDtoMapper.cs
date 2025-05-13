@@ -1,18 +1,17 @@
 using NetworkCommon.DTOs;
 using NetworkCommon.DTOs.Enum;
 using NetworkCommon.DTOs.Primitives;
-using Server.Application.Ports.Outbound.Mapping;
+using Server.Application.Ports.Outbound.Networking;
 using Server.Domain.Entities;
 using Server.Domain.Entities.Primitives;
 using Server.Domain.Enums;
-using Server.Domain.ValueObjects;
 
-namespace Server.Infrastructure.Outbound.Mapping;
+namespace Server.Infrastructure.Outbound.Networking;
 
 /// <summary>
 /// Serviço de mapeamento entre entidades de domínio e DTOs
 /// </summary>
-public class DtoMapper : IDtoMapper
+public class NetworkDtoMapper : INetworkDtoMapperPort
 {
     /// <inheritdoc />
     public CharacterDto MapToDto(Character character)

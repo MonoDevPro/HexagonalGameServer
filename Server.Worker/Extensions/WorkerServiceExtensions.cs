@@ -1,12 +1,7 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using NetworkHexagonal.Core.Application.Ports.Inbound;
-using NetworkHexagonal.Core.Application.Services;
-using NetworkHexagonal.Infrastructure.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
+using Server.AdminMetrics.API.Infrastructure.Inbound;
 using Server.Application.Ports.Inbound;
-using Server.Infrastructure.Inbound;
+using Server.Infrastructure.Inbound.Network;
 
 namespace Server.Worker.Extensions;
 
@@ -55,7 +50,7 @@ public static class WorkerServiceExtensions
     {
         // Adiciona os serviços do ASP.NET Core
         services.AddControllers()
-            .AddApplicationPart(typeof(Server.Infrastructure.Inbound.Http.ServerMonitoringController).Assembly);
+            .AddApplicationPart(typeof(ServerMonitoringController).Assembly);
         
         // Adiciona o Swagger para documentação da API
         services.AddEndpointsApiExplorer();
