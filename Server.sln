@@ -25,6 +25,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server.Worker", "Server.Wor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server.Console", "Server.Console\Server.Console.csproj", "{C8D41A6D-9E36-45F4-A4B6-82A090F826EF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "API", "API", "{C8827B49-4061-4D85-96CC-4945E67259A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server.AdminMetrics.API", "Server.AdminMetrics.API\Server.AdminMetrics.API.csproj", "{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +71,10 @@ Global
 		{C8D41A6D-9E36-45F4-A4B6-82A090F826EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C8D41A6D-9E36-45F4-A4B6-82A090F826EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C8D41A6D-9E36-45F4-A4B6-82A090F826EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -75,6 +83,7 @@ Global
 		{993D1485-70D8-48AA-BFD0-F9B751B4835E} = {4F52FD11-658E-A102-6CD3-7D7C16FFA15B}
 		{81DC173A-235E-4253-809F-A569AEE5CF23} = {A288BEE0-695A-BEEA-455C-649571D89326}
 		{FFE98261-589D-4CAF-AD77-0D7C5DBE1B8A} = {A288BEE0-695A-BEEA-455C-649571D89326}
+		{5D0C7CC4-579F-4EC1-A354-7D0ABC57008B} = {C8827B49-4061-4D85-96CC-4945E67259A2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5D52AF32-9A0A-4530-8B71-59DE3594F550}

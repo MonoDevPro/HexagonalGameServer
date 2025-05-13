@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Monitoramento do Servidor</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-server"></i> Painel de Monitoramento</h1>
+            <p class="version-info">v<span id="server-version">Carregando...</span> | <span id="server-env">Carregando...</span></p>
+        </header>
+
+        <div class="status-overview">
+            <div class="status-card" id="server-status-card">
+                <h2>Status do Servidor</h2>
+                <div class="status-indicator">
+                    <span id="status-dot" class="dot"></span>
+                    <span id="status-text">Carregando...</span>
+                </div>
+                <div class="status-details">
+                    <p><strong>Online desde:</strong> <span id="start-time">Carregando...</span></p>
+                    <p><strong>Tempo ativo:</strong> <span id="uptime">Carregando...</span></p>
+                    <p><strong>Jogadores conectados:</strong> <span id="connected-players">Carregando...</span></p>
+                </div>
+            </div>
+
+            <div class="metrics-card">
+                <h2>Métricas de Performance</h2>
+                <div class="metrics-container">
+                    <div class="metric">
+                        <div class="metric-title">CPU</div>
+                        <div class="metric-chart">
+                            <div id="cpu-bar" class="progress-bar"></div>
+                        </div>
+                        <div id="cpu-value" class="metric-value">0%</div>
+                    </div>
+
+                    <div class="metric">
+                        <div class="metric-title">Memória</div>
+                        <div class="metric-chart">
+                            <div id="memory-bar" class="progress-bar"></div>
+                        </div>
+                        <div id="memory-value" class="metric-value">0 MB</div>
+                    </div>
+
+                    <div class="metric-row">
+                        <div class="metric-small">
+                            <div class="metric-title">Threads</div>
+                            <div id="threads-value" class="metric-value-lg">0</div>
+                        </div>
+                        <div class="metric-small">
+                            <div class="metric-title">Requisições/min</div>
+                            <div id="requests-value" class="metric-value-lg">0</div>
+                        </div>
+                        <div class="metric-small">
+                            <div class="metric-title">Conexões/min</div>
+                            <div id="connections-value" class="metric-value-lg">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="players-section">
+            <h2>Jogadores Online</h2>
+            <div class="player-filter">
+                <input type="text" id="player-search" placeholder="Buscar jogador...">
+                <select id="zone-filter">
+                    <option value="">Todas as Zonas</option>
+                </select>
+            </div>
+            <div class="players-table-container">
+                <table class="players-table">
+                    <thead>
+                        <tr>
+                            <th>ID do Jogador</th>
+                            <th>Nome de Usuário</th>
+                            <th>Conectado Desde</th>
+                            <th>Zona Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="players-list">
+                        <!-- Jogadores serão inseridos aqui via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Painel de Monitoramento © 2025 | Atualização: <span id="last-update">Nunca</span></p>
+    </footer>
+
+    <script src="js/monitoring.js"></script>
+</body>
+</html>
